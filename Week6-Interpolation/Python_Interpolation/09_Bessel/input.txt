@@ -1,0 +1,19 @@
+# 1. Điểm x cần tính:
+eval_x = 2.55
+# 2. Tùy chỉnh số mốc (số chẵn: 4, 6, all):
+n_points = 6
+# ==========================================================
+# FILE INPUT: NỘI SUY BESSEL
+# ==========================================================
+# Ghi chú: Yêu cầu số mốc cách đều CHẴN
+# x0_index: chỉ số mốc trung tâm x0 thứ nhất (0-based, bỏ qua để tự lấy trung tâm)
+# x0_index = 2
+
+# CÁCH 1: Nhập hàng ngang
+x = 1.000   1.075   1.150   1.225   1.300   1.375
+y = 3.6050  3.5902  3.5553  3.5003  3.4257  3.3318
+
+# (Hoặc CÁCH 2: Rút gọn mốc cách đều)
+# x0 = 1.000
+# h = 0.075
+# y = 3.6050  3.5902  3.5553  3.5003  3.4257  3.3318
