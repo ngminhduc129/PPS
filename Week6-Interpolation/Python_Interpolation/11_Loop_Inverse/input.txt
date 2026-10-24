@@ -1,0 +1,8 @@
+# File input cho Phương pháp Lặp Nội suy Ngược (Inverse Interpolation Loop)
+# Hỗ trợ copy-paste nguyên xi file đề thi Midterm có chứa y* (eval_y)
+eval_y = -1.43
+2.3    -1.9774
+2.4    -1.7483
+2.5    -1.5366
+2.6    -1.3411
+2.7    -1.1607

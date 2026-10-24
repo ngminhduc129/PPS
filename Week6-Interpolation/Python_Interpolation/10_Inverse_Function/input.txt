@@ -1,0 +1,8 @@
+# File input cho Phương pháp Nội suy Hàm Ngược (Inverse Function)
+# Có thể dán thẳng đề thi Midterm hoặc nhập mốc x, y tự do
+eval_y = 2.50
+1.3    2.3170624
+1.4    2.4401799
+1.5    2.5529043
+1.6    2.6551084
+1.7    2.7467702

@@ -296,20 +296,22 @@ def _parse_from_dataframe(df, params):
             pass
     return points, params
 
-def select_window_for_method(points, eval_x, method="gauss1", n_points=None, degree=None):
+def select_window_for_method(points, eval_x=None, method="gauss1", n_points=None, degree=None, eval_y=None):
     """
-    Tự động chọn mốc trung tâm x0 và cắt cửa sổ điểm tối ưu quanh x* cho phương pháp tương ứng.
+    Tự động chọn mốc trung tâm x0 và cắt cửa sổ điểm tối ưu quanh x* (hoặc y*) cho phương pháp tương ứng.
     
     Args:
         points: list (x_i, y_i)
         eval_x: float điểm cần nội suy
-        method: 'gauss1', 'gauss2', 'stirling', 'bessel', 'newton_finite', 'newton_divided', 'lagrange'
+        method: 'gauss1', 'gauss2', 'stirling', 'bessel', 'newton_finite', 'newton_divided', 'lagrange',
+                'inverse_function', 'loop_inverse', 'spline'
         n_points: số điểm mong muốn (int hoặc 'all')
         degree: bậc mong muốn (n_points = degree + 1)
+        eval_y: float điểm cần nội suy ngược (nếu có)
         
     Returns:
         subset_points: danh sách điểm được chọn
-        x0_idx_in_subset: chỉ số của mốc x0 trong subset (quan trọng cho Gauss/Stirling/Bessel)
+        x0_idx_in_subset: chỉ số của mốc x0 trong subset (quan trọng cho Gauss/Stirling/Bessel/Lặp)
         msg: thông báo tóm tắt quá trình chọn cửa sổ
     """
     total_pts = len(points)
@@ -322,6 +324,9 @@ def select_window_for_method(points, eval_x, method="gauss1", n_points=None, deg
         if eval_x is not None:
             diffs = [abs(p[0] - eval_x) for p in points]
             best_idx = int(np.argmin(diffs))
+        elif eval_y is not None:
+            diffs = [abs(p[1] - eval_y) for p in points]
+            best_idx = int(np.argmin(diffs))
         else:
             best_idx = total_pts // 2
         return points, best_idx, f"Sử dụng toàn bộ {total_pts} mốc điểm (x0_idx = {best_idx})."
@@ -331,6 +336,9 @@ def select_window_for_method(points, eval_x, method="gauss1", n_points=None, deg
         if eval_x is not None:
             diffs = [abs(p[0] - eval_x) for p in points]
             best_idx = int(np.argmin(diffs))
+        elif eval_y is not None:
+            diffs = [abs(p[1] - eval_y) for p in points]
+            best_idx = int(np.argmin(diffs))
         else:
             best_idx = total_pts // 2
         return points, best_idx, f"Số mốc nhỏ ({total_pts} điểm), giữ nguyên toàn bộ."
@@ -338,10 +346,6 @@ def select_window_for_method(points, eval_x, method="gauss1", n_points=None, deg
     # Xác định số mốc mục tiêu
     method_low = method.lower()
     
-    # Mặc định số mốc cho từng phương pháp khi dataset lớn:
-    # Gauss I, Gauss II, Stirling: yêu cầu số mốc lẻ -> mặc định 5 hoặc 7 mốc (bậc 4 hoặc 6)
-    # Bessel: yêu cầu số mốc chẵn -> mặc định 6 mốc (bậc 5)
-    # Newton, Lagrange: mặc định 5 mốc (bậc 4)
     if degree is not None:
         target_pts = degree + 1
     elif n_points is not None:
@@ -351,6 +355,10 @@ def select_window_for_method(points, eval_x, method="gauss1", n_points=None, deg
             target_pts = 5  # Bậc 4
         elif method_low == "bessel":
             target_pts = 6  # 6 mốc (mỗi bên 3 mốc)
+        elif method_low in ["loop_inverse", "inverse_function"]:
+            target_pts = 4  # Chuẩn đề thi 4 mốc bậc 3
+        elif method_low == "spline":
+            target_pts = min(total_pts, 8)
         else:
             target_pts = 5  # Bậc 4
 
@@ -364,12 +372,41 @@ def select_window_for_method(points, eval_x, method="gauss1", n_points=None, deg
 
     target_pts = min(target_pts, total_pts)
 
+    # Xử lý trường hợp phương pháp ngược (Inverse / Loop) dựa trên eval_y
+    if method_low in ["inverse_function", "loop_inverse"] and eval_y is not None:
+        bracket_idx = None
+        for i in range(total_pts - 1):
+            if (points[i][1] - eval_y) * (points[i + 1][1] - eval_y) <= 0:
+                bracket_idx = i
+                break
+        if bracket_idx is not None:
+            start = max(0, min(bracket_idx, total_pts - target_pts))
+            k_y = bracket_idx
+        else:
+            diffs_y = [abs(p[1] - eval_y) for p in points]
+            k_y = int(np.argmin(diffs_y))
+            start = max(0, min(k_y - target_pts // 2, total_pts - target_pts))
+
+        end = start + target_pts
+        sub = points[start:end]
+        x0_in_sub = k_y - start
+        msg = (f"[Auto-Windowing] Đã phát hiện y* = {eval_y}. Chọn khoảng kẹp [{points[k_y][1]:.6f}, {points[min(k_y+1, total_pts-1)][1]:.6f}] "
+               f"(x = {points[k_y][0]}..{points[min(k_y+1, total_pts-1)][0]}), "
+               f"trích xuất cửa sổ {len(sub)} mốc lân cận (từ x = {sub[0][0]} đến {sub[-1][0]}).")
+        return sub, x0_in_sub, msg
+
     if eval_x is None:
-        # Không có eval_x, lấy chính giữa dataset
+        if eval_y is not None:
+            diffs_y = [abs(p[1] - eval_y) for p in points]
+            k_y = int(np.argmin(diffs_y))
+            start = max(0, min(k_y - target_pts // 2, total_pts - target_pts))
+            end = start + target_pts
+            sub = points[start:end]
+            return sub, k_y - start, f"Cắt {len(sub)} mốc quanh y* = {eval_y}."
         start = max(0, (total_pts - target_pts) // 2)
         end = start + target_pts
         sub = points[start:end]
-        return sub, len(sub) // 2, f"Không có eval_x, lấy {target_pts} mốc chính giữa."
+        return sub, len(sub) // 2, f"Không có eval_x/eval_y, lấy {target_pts} mốc chính giữa."
 
     # Tìm mốc gần eval_x nhất
     diffs = [abs(p[0] - eval_x) for p in points]
