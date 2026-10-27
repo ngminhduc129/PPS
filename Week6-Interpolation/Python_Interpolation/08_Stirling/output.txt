@@ -164,3 +164,26 @@ Chi tiết các cấp đạo hàm trọng tâm:
        (Đa thức P'''(t) = 0.019491667 + 0.068591667*t - 0.0020833333*t^2 - 0.0039166667*t^3 + 8.3333333e-05*t^4 + 0.00021666667*t^5)
      + Quy đổi theo biến x:   f'''(3.27) ≈ P'''(3.27) = P'''(t*) / h^3 = 5.3847503847
        (Đa thức P'''(x) = -25912.347 + 41724.536*x - 26752.344*x^2 + 8522.1354*x^3 - 1347.6563*x^4 + 84.635417*x^5)
+
+##########################################################################################
+PHẦN B: NỘI SUY STIRLING VỚI MỐC TÂM LIỀN KỀ x0 = 3.4 (idx 5)
+##########################################################################################
+Điểm x* = 3.27 nằm giữa 3.2 và 3.4.
+Tại tâm x0 = 3.4: t* = (3.27 - 3.4) / 0.200000 = -0.650000
+Đa thức: P_alt(x) = -3642.099 + 8728.5719*x - 9105.3163*x^2 + 5386.7388*x^3 - 1979.0828*x^4 + 462.91667*x^5 - 67.442491*x^6 + 5.6036086*x^7 - 0.20345052*x^8
+=> Giá trị nội suy: P_alt(3.27) = -29.6218979850
+=> Độ lệch giữa 2 lựa chọn mốc tâm: |P_opt - P_alt| = 4.50e-05
+
+##########################################################################################
+PHẦN C: ĐỐI CHIẾU KIỂM CHỨNG QUAN HỆ GIỮA STIRLING VÀ GAUSS (GAUSS I & GAUSS II)
+##########################################################################################
+Lý thuyết toán học: Công thức nội suy Stirling chính là TRUNG BÌNH CỘNG SỐ HỌC giữa Gauss I (Thuận) và Gauss II (Nghịch):
+   P_stirling(x*) = [ P_gauss1(x*) + P_gauss2(x*) ] / 2
+
+Kiểm chứng tại điểm x* = 3.27:
+   - Giá trị theo Gauss I  (Thuận):  P_gauss1(3.27)  = -29.6218530041
+   - Giá trị theo Gauss II (Nghịch): P_gauss2(3.27)  = -29.6218530041
+   - Trung bình cộng (Gauss 1 + Gauss 2) / 2 = -29.6218530041
+   - Giá trị tính theo Stirling:     P_stirling(3.27) = -29.6218530041
+   => Độ lệch kiểm chứng: |P_stirling - (P_gauss1 + P_gauss2)/2| = 3.55e-15
+   => KẾT LUẬN: Đẳng thức toán học hoàn toàn chính xác! Stirling là trung bình cộng của 2 đa thức Gauss.

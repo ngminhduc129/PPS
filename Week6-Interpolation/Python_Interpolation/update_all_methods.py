@@ -8,7 +8,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # -------------------------------------------------------------
 # 07_Gauss2
 # -------------------------------------------------------------
-gauss2_code = '''"""
+gauss2_code = r'''"""
 Nội suy Gauss II (Gauss nghịch)
 Nhập: input.txt hoặc file đề thi Midterm (.txt, .csv, .xlsx)
 Xuất: output.txt
@@ -101,14 +101,14 @@ def main():
     if msg: out.append(msg)
     out.extend([
         f"Số mốc tính toán: {len(sub_points)}, Bước h: {h:.6f}, Mốc x0 (idx {x0_idx}): {x0_val}",
-        f"Chuẩn hóa: t = (x - {x0_val}) / {h:.6f}", "\\n1. Bảng sai phân hữu hạn:",
-        df_tbl.to_string(index=True), "\\n2. Các bước dựng đa thức:", s_df.to_string(index=False),
-        "\\n3. Bảng hệ số P(t):", c_df.to_string(index=False), f"\\n4. Đa thức nội suy P(t):\\nP(t) = {poly_str(coeffs)}"
+        f"Chuẩn hóa: t = (x - {x0_val}) / {h:.6f}", "\n1. Bảng sai phân hữu hạn:",
+        df_tbl.to_string(index=True), "\n2. Các bước dựng đa thức:", s_df.to_string(index=False),
+        "\n3. Bảng hệ số P(t):", c_df.to_string(index=False), f"\n4. Đa thức nội suy P(t):\nP(t) = {poly_str(coeffs)}"
     ])
     if eval_x is not None:
         t_val = (eval_x - x0_val) / h
         val = sum(c * (t_val ** deg) for deg, c in enumerate(coeffs))
-        out.append(f"\\n5. Giá trị tại x = {eval_x}:\\nt = {t_val:.6f}\\nP({eval_x}) = {val:.10f}")
+        out.append(f"\n5. Giá trị tại x = {eval_x}:\nt = {t_val:.6f}\nP({eval_x}) = {val:.10f}")
     content = "\n".join(out)
     print("\n" + content)
     with open(args.output_file, "w", encoding="utf-8") as f: f.write(content + "\n")
@@ -143,7 +143,7 @@ print("Updated 09_Bessel")
 # -------------------------------------------------------------
 # 05_Newton_Finite
 # -------------------------------------------------------------
-newton_finite_code = '''"""
+newton_finite_code = r'''"""
 Nội suy Newton sai phân hữu hạn (mốc cách đều)
 Nhập: input.txt hoặc file đề thi Midterm (.txt, .csv, .xlsx)
 Xuất: output.txt
@@ -178,7 +178,7 @@ def newton_fg(points, condition=1):
         if i == 0: Bc = np.array([1.0])
         else:
             k = i - 1
-            Bc = (np.concatenate(([0.0], B_prev)) - np.concatenate((k * B_prev, [0.0]))) if condition == 1 \\
+            Bc = (np.concatenate(([0.0], B_prev)) - np.concatenate((k * B_prev, [0.0]))) if condition == 1 \
                  else (np.concatenate(([0.0], B_prev)) + np.concatenate((k * B_prev, [0.0])))
         B_prev = Bc.copy()
         Ni = Di * Bc
@@ -254,7 +254,7 @@ print("Updated 05_Newton_Finite")
 # -------------------------------------------------------------
 # 04_Newton_Divided
 # -------------------------------------------------------------
-newton_divided_code = '''"""
+newton_divided_code = r'''"""
 Nội suy Newton tỷ sai phân (mốc bất kỳ)
 Nhập: input.txt hoặc file đề thi Midterm (.txt, .csv, .xlsx)
 Xuất: output.txt
@@ -361,7 +361,7 @@ print("Updated 04_Newton_Divided")
 # -------------------------------------------------------------
 # 03_Lagrange
 # -------------------------------------------------------------
-lagrange_code = '''"""
+lagrange_code = r'''"""
 Nội suy Lagrange (Lagrange Interpolation)
 Nhập: input.txt hoặc file đề thi Midterm (.txt, .csv, .xlsx)
 Xuất: output.txt

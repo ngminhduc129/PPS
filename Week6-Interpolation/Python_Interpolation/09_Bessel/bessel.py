@@ -482,9 +482,76 @@ def format_bessel_report(res, msg=""):
 
     return "\n".join(lines)
 
+def build_bessel_symmetric_u(n, d_all, eval_u=None):
+    """
+    Xây dựng đa thức Bessel theo biến đối xứng u = t - 1/2 (-0.5 <= u <= 0.5).
+    B_0(u) = 1
+    B_1(u) = u
+    B_{2k}(u) = B_{2k-2}(u) * (u^2 - (2k-1)^2 / 4)
+    B_{2k+1}(u) = B_{2k}(u) * u
+    """
+    B_u_list = [np.array([1.0]), np.array([0.0, 1.0])]
+    for i in range(2, n + 1):
+        if i % 2 == 0:
+            k = i // 2
+            c_val = -((2 * k - 1) ** 2) / 4.0
+            factor = np.array([c_val, 0.0, 1.0])
+            Bu = np.convolve(B_u_list[i - 2], factor)
+        else:
+            Bu = np.convolve(B_u_list[i - 1], [0.0, 1.0])
+        B_u_list.append(Bu)
+
+    P_u_total = np.zeros(n + 1, dtype=float)
+    u_step_rows = []
+    for i in range(n + 1):
+        di = d_all[i]
+        ni = di * B_u_list[i]
+        P_u_total[:len(ni)] += ni
+        
+        # Biểu thức dạng chuỗi
+        if i == 0:
+            u_str = "1"
+        elif i == 1:
+            u_str = "u"
+        elif i % 2 == 0:
+            k = i // 2
+            factors = [f"(u^2 - {((2*j-1)/2)**2:g})" for j in range(1, k + 1)]
+            u_str = "*".join(factors)
+        else:
+            k = i // 2
+            factors = ["u"] + [f"(u^2 - {((2*j-1)/2)**2:g})" for j in range(1, k + 1)]
+            u_str = "*".join(factors)
+            
+        u_step_rows.append({
+            "i": i,
+            "D_i": di,
+            "Biểu thức B_i(u)": u_str,
+            "N_i(u) [0->cao]": [round(v, 8) for v in ni.tolist()]
+        })
+
+    val_eval_u = None
+    u_eval_rows = []
+    if eval_u is not None:
+        cum_u = 0.0
+        for i in range(n + 1):
+            bu_val = float(sum(c * (eval_u ** deg) for deg, c in enumerate(B_u_list[i])))
+            di = d_all[i]
+            ti = di * bu_val
+            cum_u += ti
+            u_eval_rows.append({
+                "i": i,
+                "B_i(u*)": bu_val,
+                "D_i": di,
+                "Số hạng T_i": ti,
+                "Tổng dồn P_i(u*)": cum_u
+            })
+        val_eval_u = cum_u
+
+    return pd.DataFrame(u_step_rows), P_u_total, pd.DataFrame(u_eval_rows), val_eval_u
+
 def main():
     s_dir = os.path.dirname(os.path.abspath(__file__))
-    p = argparse.ArgumentParser(description="Nội suy Bessel - Chuẩn 5 phần")
+    p = argparse.ArgumentParser(description="Nội suy Bessel - Chuẩn 5 phần, in đồng thời dạng theo t và biến đối xứng u")
     p.add_argument("input_file", nargs="?", default=os.path.join(s_dir, "input.txt"))
     p.add_argument("output_file", nargs="?", default=os.path.join(s_dir, "output.txt"))
     p.add_argument("-x", "--eval_x", type=float, help="Điểm cần tính x*")
@@ -518,9 +585,60 @@ def main():
     else:
         x0_idx = max(0, min(x0_idx, len(sub_points) - 2))
 
+    # 1. Phần A: Bessel theo biến chuẩn hóa t
     res = bessel(sub_points, x0_idx, eval_x)
-    final_output = format_bessel_report(res, msg)
+    rep_t = format_bessel_report(res, msg)
 
+    sections = [rep_t]
+
+    # 2. Phần B: Bessel theo biến đối xứng u = t - 1/2
+    n = res['n']
+    eval_u = (res['eval_t'] - 0.5) if res['eval_t'] is not None else None
+    df_u_steps, P_u_total, df_u_eval, val_eval_u = build_bessel_symmetric_u(n, res['d_all'], eval_u=eval_u)
+
+    u_lines = []
+    u_lines.append("\n" + ("#" * 90))
+    u_lines.append("PHẦN B: NỘI SUY BESSEL THEO BIẾN ĐỐI XỨNG u = t - 1/2 (DẠNG KINH ĐIỂN PHÒNG THI)")
+    u_lines.append("#" * 90)
+    x_mid = 0.5 * (sub_points[x0_idx][0] + sub_points[x0_idx + 1][0])
+    u_lines.append(f"Tâm đối xứng: x_mid = (x0 + x1) / 2 = ({sub_points[x0_idx][0]} + {sub_points[x0_idx + 1][0]}) / 2 = {x_mid:.6f}")
+    u_lines.append(f"Biến đối xứng: u = t - 0.5 = (x - {x_mid:.6f}) / {res['h']:.6f}  (với u thuộc [-0.5, 0.5])")
+    u_lines.append("\n1. Bảng các bước dựng đa thức cơ sở tích theo biến u:")
+    u_lines.append(df_u_steps[["i", "D_i", "Biểu thức B_i(u)"]].to_string(index=False))
+
+    u_lines.append("\n2. Đa thức nội suy Bessel rút gọn theo lũy thừa của u:")
+    u_lines.append(f"P(u) = {poly_str(P_u_total, var='u')}")
+    u_lines.append("   (Nhận xét: Các số hạng chẵn chỉ chứa lũy thừa chẵn của u, các số hạng lẻ chỉ chứa lũy thừa lẻ của u)")
+
+    if eval_u is not None:
+        u_lines.append(f"\n3. Giá trị tại u* = t* - 0.5 = {eval_u:.6f}:")
+        u_lines.append(df_u_eval.to_string(index=False))
+        u_lines.append(f"\n=> GIÁ TRỊ NỘI SUY THEO BIẾN u:")
+        u_lines.append(f"   P_u(u* = {eval_u:.6f}) = {val_eval_u:.10f}")
+
+    sections.append("\n".join(u_lines))
+
+    # 3. Phần C: Tổng kết & So sánh
+    if eval_x is not None and val_eval_u is not None:
+        val_t = res['val_final']
+        diff_tu = abs(val_t - val_eval_u)
+        sum_lines = []
+        sum_lines.append("\n" + ("#" * 90))
+        sum_lines.append("PHẦN C: TỔNG KẾT & SO SÁNH (KIỂM CHỨNG TÍNH ĐỒNG NHẤT)")
+        sum_lines.append("#" * 90)
+        sum_lines.append(f"1. So sánh tại điểm x* = {eval_x}:")
+        sum_lines.append(f"   - Bessel theo biến chuẩn hóa t:   P_t({eval_x}) = {val_t:.10f}  (t* = {res['eval_t']:.6f})")
+        sum_lines.append(f"   - Bessel theo biến đối xứng u:    P_u({eval_x}) = {val_eval_u:.10f}  (u* = {eval_u:.6f})")
+        sum_lines.append(f"   => Độ lệch tuyệt đối: |P_t - P_u| = {diff_tu:.2e}")
+        if diff_tu < 1e-9:
+            sum_lines.append("   => KẾT LUẬN: Hai dạng biểu diễn theo biến t và biến u hoàn toàn trùng khớp chính xác 100%!")
+
+        sum_lines.append("\n2. Nhận xét lý thuyết về công thức Bessel:")
+        sum_lines.append("   - Bessel đặc biệt tối ưu khi x* nằm ở NỬA GIỮA khoảng mốc [x0, x1], tức 0.25 <= t <= 0.75 (hay |u| <= 0.25).")
+        sum_lines.append("   - Khác với Stirling tối ưu gần một mốc đơn lẻ (|t| <= 0.25 quanh x0), Bessel phân bố đều sai số giữa hai mốc liên tiếp x0 và x1.")
+        sections.append("\n".join(sum_lines))
+
+    final_output = "\n".join(sections)
     print("\n" + final_output)
     with open(args.output_file, "w", encoding="utf-8") as f:
         f.write(final_output + "\n")

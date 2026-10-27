@@ -4,7 +4,6 @@ Tất cả các phương pháp nội suy được tổ chức theo cấu trúc m
 1. **Dán thẳng file đề thi Midterm (`.txt`, `.csv`, `.xlsx`)** mà không cần sửa file hay xóa header.
 2. **Tự động nhận diện điểm cần tính $x^*$ (`eval_x`) và $y^*$ (`eval_y`)** trực tiếp từ đề bài.
 3. **Auto-Windowing thông minh**: Với các đề thi có hơn 100 điểm mốc, code tự động chọn mốc trung tâm $x_0 \approx x^*$ và cắt cửa sổ 5 hoặc 7 điểm đối xứng quanh $x^*$ (chuẩn theo yêu cầu tính đa thức bậc 4, 6 trong phòng thi).
-4. **Công cụ giải nhanh đề thi `solve_midterm.py`**: Chạy và so sánh tất cả các phương pháp chỉ với một dòng lệnh duy nhất.
 
 ---
 
@@ -74,23 +73,6 @@ python stirling.py ../../../Midterm/20251GKtest1/20251GKtest1.csv
 
 ---
 
-## 🏆 Công cụ giải nhanh đề thi tổng hợp `solve_midterm.py`
-
-Nằm tại thư mục gốc `Python_Interpolation/`, cho phép giải bất kỳ phương pháp nào hoặc so sánh tất cả các phương pháp cùng lúc:
-
-```bash
-# 1. Giải phương pháp Stirling trên đề thi 20251:
-python solve_midterm.py --file ../../Midterm/20251GKtest1/20251GKtest1.csv --method stirling
-
-# 2. Giải phương pháp Gauss I trên đề thi 20241 với đa thức bậc 4:
-python solve_midterm.py --file ../../Midterm/20241GKtest1/20241GKtest1.txt --method gauss1 --degree 4
-
-# 3. So sánh tất cả các phương pháp trên cùng 1 đề thi:
-python solve_midterm.py --file ../../Midterm/20251GKtest1/20251GKtest1.csv --compare
-```
-
----
-
 ## 🎯 Tham số dòng lệnh nâng cao (CLI Options)
 
 Tất cả các script phương pháp (`<method>.py`) đều hỗ trợ các tham số:
@@ -98,3 +80,17 @@ Tất cả các script phương pháp (`<method>.py`) đều hỗ trợ các tha
 - `-d <val>` hoặc `--degree <val>`: Bậc đa thức cần dựng (ví dụ 4 hoặc 6).
 - `-n <val>` hoặc `--n_points <val>`: Số mốc dữ liệu cần dùng.
 - `--all`: Sử dụng toàn bộ mốc dữ liệu mà không cắt cửa sổ.
+- `-t <type>` hoặc `--type <type>`: Chỉ định trường hợp cụ thể (ví dụ `tien`, `lui`, `both`), mặc định luôn là `both` (tự động in tất cả các trường hợp).
+
+---
+
+## 🌟 Tính năng: Tự động in TẤT CẢ các trường hợp (All Cases In One Run)
+
+Đối với các phương pháp từ **Lagrange** đến **Bessel**, khi chạy mặc định (không cần truyền thêm cờ), chương trình tự động phân tích và in ra toàn bộ mọi khía cạnh:
+- **`03_Lagrange`**: In đồng thời **Cửa sổ cục bộ lân cận quanh $x^*$** + **Toàn bộ mốc** (đánh giá hiện tượng Runge) + **Nội suy ngược $x=P(y^*)$** (nếu có $y^*$) + Đạo hàm các cấp.
+- **`04_Newton_Divided`**: In đồng thời **Newton Tỷ sai phân TIẾN** (từ $x_0$) + **Newton Tỷ sai phân LÙI** (từ $x_n$) + Bảng so sánh kiểm chứng tính duy nhất của $P(x)$.
+- **`05_Newton_Finite`**: In đồng thời **Newton Sai phân hữu hạn TIẾN** ($\Delta^k y_0, t$) + **Newton Sai phân hữu hạn LÙI** ($\nabla^k y_n, t_b$) + Quy đổi sang $P(x)$ + Đạo hàm + So sánh vùng hội tụ tối ưu.
+- **`06_Gauss1` & `07_Gauss2`**: In đồng thời **Gauss I (Thuận)** + **Gauss II (Nghịch)** + So sánh tính đồng nhất tuyệt đối.
+- **`08_Stirling`**: In kết quả với **Mốc tâm $x_0$ tối ưu** + **Mốc tâm liền kề** + Đối chiếu kiểm chứng công thức lý thuyết $P_{stirling}(x^*) \equiv \frac{P_{gauss1}(x^*) + P_{gauss2}(x^*)}{2}$.
+- **`09_Bessel`**: In đồng thời dạng theo **Biến chuẩn hóa $t$** ($0 \le t \le 1$) và dạng theo **Biến đối xứng $u = t - 1/2$** ($-0.5 \le u \le 0.5$) kinh điển trong phòng thi + So sánh kiểm chứng tính đồng nhất 100%.
+

@@ -476,9 +476,67 @@ def format_stirling_report(res, msg=""):
 
     return "\n".join(lines)
 
+def run_gauss_for_stirling_check(points, x0_idx, eval_x):
+    """
+    Hàm phụ trợ tính nhanh Gauss I và Gauss II trên cùng tập mốc để kiểm chứng lý thuyết:
+    P_stirling(x*) = (P_gauss1(x*) + P_gauss2(x*)) / 2
+    """
+    xv = [p[0] for p in points]; yv = [p[1] for p in points]; m = len(yv); h = xv[1] - xv[0]
+    x0_val = xv[x0_idx]
+    eval_t = (eval_x - x0_val) / h
+
+    # Bảng sai phân tiến
+    tbl = np.full((m, m), np.nan, dtype=float)
+    tbl[:, 0] = yv
+    for j in range(1, m):
+        for i in range(m - j):
+            tbl[i, j] = tbl[i + 1, j - 1] - tbl[i, j - 1]
+
+    # Gauss 1
+    # B_i(t): B_0=1, B_1=t, B_2=t(t-1), B_3=t(t-1)(t+1), ...
+    # Hệ số hàng: r = x0_idx - i//2
+    cum_g1 = 0.0
+    cum_prod_g1 = 1.0
+    for i in range(m):
+        r = x0_idx - (i // 2)
+        ci = tbl[r, i]
+        di = ci / math.factorial(i)
+        if i == 0:
+            fact_val = 1.0
+        elif i == 1:
+            fact_val = eval_t
+            cum_prod_g1 *= fact_val
+        else:
+            node = i // 2 if i % 2 == 0 else -((i - 1) // 2)
+            fact_val = eval_t - node
+            cum_prod_g1 *= fact_val
+        cum_g1 += di * cum_prod_g1
+
+    # Gauss 2
+    # B_i(t): B_0=1, B_1=t, B_2=t(t+1), B_3=t(t+1)(t-1), ...
+    # Hệ số trên bảng tiến: r = x0_idx - (i+1)//2 nếu i > 0
+    cum_g2 = 0.0
+    cum_prod_g2 = 1.0
+    for i in range(m):
+        r = x0_idx if i == 0 else x0_idx - ((i + 1) // 2)
+        ci = tbl[r, i]
+        di = ci / math.factorial(i)
+        if i == 0:
+            fact_val = 1.0
+        elif i == 1:
+            fact_val = eval_t
+            cum_prod_g2 *= fact_val
+        else:
+            node = -((i) // 2) if i % 2 == 0 else ((i - 1) // 2)
+            fact_val = eval_t - node
+            cum_prod_g2 *= fact_val
+        cum_g2 += di * cum_prod_g2
+
+    return cum_g1, cum_g2
+
 def main():
     s_dir = os.path.dirname(os.path.abspath(__file__))
-    p = argparse.ArgumentParser(description="Nội suy Stirling - Chuẩn 5 phần")
+    p = argparse.ArgumentParser(description="Nội suy Stirling - Chuẩn 5 phần, in toàn bộ trường hợp & đối chiếu Gauss")
     p.add_argument("input_file", nargs="?", default=os.path.join(s_dir, "input.txt"))
     p.add_argument("output_file", nargs="?", default=os.path.join(s_dir, "output.txt"))
     p.add_argument("-x", "--eval_x", type=float, help="Điểm cần tính x*")
@@ -510,9 +568,71 @@ def main():
     if args.x0_index is None and "x0_index" not in params:
         x0_idx = (len(sub_points) - 1) // 2
 
+    # 1. Trường hợp 1: Stirling với mốc tâm x0 tối ưu
     res = stirling(sub_points, x0_idx, eval_x)
-    final_output = format_stirling_report(res, msg)
+    report_opt = format_stirling_report(res, msg)
 
+    sections = [report_opt]
+
+    # 2. Trường hợp 2: Lựa chọn mốc tâm liền kề (nếu x* nằm giữa 2 mốc)
+    h = sub_points[1][0] - sub_points[0][0]
+    n_pts = len(sub_points)
+    max_half = (n_pts - 1) // 2
+    if eval_x is not None:
+        # Kiểm tra mốc liền kề
+        alt_idx = None
+        if eval_x > sub_points[x0_idx][0] and x0_idx + 1 < n_pts - 1:
+            alt_idx = x0_idx + 1
+        elif eval_x < sub_points[x0_idx][0] and x0_idx - 1 >= 1:
+            alt_idx = x0_idx - 1
+
+        # Nếu có thể cắt cửa sổ đối xứng cho mốc liền kề từ points gốc
+        if alt_idx is not None:
+            # Tìm chỉ số trong points gốc
+            alt_val = sub_points[alt_idx][0]
+            orig_indices = [i for i, p in enumerate(points) if abs(p[0] - alt_val) < 1e-9]
+            if orig_indices:
+                orig_k = orig_indices[0]
+                m_rad = (len(sub_points) - 1) // 2
+                if orig_k - m_rad >= 0 and orig_k + m_rad < len(points):
+                    alt_sub = points[orig_k - m_rad : orig_k + m_rad + 1]
+                    res_alt = stirling(alt_sub, m_rad, eval_x)
+                    alt_t = (eval_x - alt_val) / h
+                    alt_lines = []
+                    alt_lines.append("\n" + ("#" * 90))
+                    alt_lines.append(f"PHẦN B: NỘI SUY STIRLING VỚI MỐC TÂM LIỀN KỀ x0 = {alt_val} (idx {alt_idx})")
+                    alt_lines.append("#" * 90)
+                    alt_lines.append(f"Điểm x* = {eval_x} nằm giữa {min(sub_points[x0_idx][0], alt_val)} và {max(sub_points[x0_idx][0], alt_val)}.")
+                    alt_lines.append(f"Tại tâm x0 = {alt_val}: t* = ({eval_x} - {alt_val}) / {h:.6f} = {alt_t:.6f}")
+                    alt_lines.append(f"Đa thức: P_alt(x) = {res_alt['expanded_x_str']}")
+                    alt_lines.append(f"=> Giá trị nội suy: P_alt({eval_x}) = {res_alt['val_final']:.10f}")
+                    diff_centers = abs(res['val_final'] - res_alt['val_final'])
+                    alt_lines.append(f"=> Độ lệch giữa 2 lựa chọn mốc tâm: |P_opt - P_alt| = {diff_centers:.2e}")
+                    sections.append("\n".join(alt_lines))
+
+        # 3. Phần C: Đối chiếu kiểm chứng quan hệ giữa Stirling và Gauss
+        val_g1, val_g2 = run_gauss_for_stirling_check(sub_points, x0_idx, eval_x)
+        avg_gauss = (val_g1 + val_g2) / 2.0
+        val_stirl = res['val_final']
+        diff_theory = abs(val_stirl - avg_gauss)
+
+        verif_lines = []
+        verif_lines.append("\n" + ("#" * 90))
+        verif_lines.append("PHẦN C: ĐỐI CHIẾU KIỂM CHỨNG QUAN HỆ GIỮA STIRLING VÀ GAUSS (GAUSS I & GAUSS II)")
+        verif_lines.append("#" * 90)
+        verif_lines.append(f"Lý thuyết toán học: Công thức nội suy Stirling chính là TRUNG BÌNH CỘNG SỐ HỌC giữa Gauss I (Thuận) và Gauss II (Nghịch):")
+        verif_lines.append("   P_stirling(x*) = [ P_gauss1(x*) + P_gauss2(x*) ] / 2")
+        verif_lines.append(f"\nKiểm chứng tại điểm x* = {eval_x}:")
+        verif_lines.append(f"   - Giá trị theo Gauss I  (Thuận):  P_gauss1({eval_x})  = {val_g1:.10f}")
+        verif_lines.append(f"   - Giá trị theo Gauss II (Nghịch): P_gauss2({eval_x})  = {val_g2:.10f}")
+        verif_lines.append(f"   - Trung bình cộng (Gauss 1 + Gauss 2) / 2 = {avg_gauss:.10f}")
+        verif_lines.append(f"   - Giá trị tính theo Stirling:     P_stirling({eval_x}) = {val_stirl:.10f}")
+        verif_lines.append(f"   => Độ lệch kiểm chứng: |P_stirling - (P_gauss1 + P_gauss2)/2| = {diff_theory:.2e}")
+        if diff_theory < 1e-9:
+            verif_lines.append("   => KẾT LUẬN: Đẳng thức toán học hoàn toàn chính xác! Stirling là trung bình cộng của 2 đa thức Gauss.")
+        sections.append("\n".join(verif_lines))
+
+    final_output = "\n".join(sections)
     print("\n" + final_output)
     with open(args.output_file, "w", encoding="utf-8") as f:
         f.write(final_output + "\n")
