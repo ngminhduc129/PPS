@@ -5,7 +5,7 @@
 # xuất riêng 2 bảng tam giác trên & dưới nên KHÔNG CẦN nhập "type".
 
 # 1. Điểm x cần tính giá trị nội suy (eval_x hoặc x*):
-eval_x = 1.8
+eval_x = 1.64
 
 # 2. TÙY CHỈNH SỐ MỐC HOẶC BẬC ĐA THỨC (Mặc định: all):
 # - n_points = all   (lấy toàn bộ mốc dữ liệu, không cắt)
@@ -16,5 +16,10 @@ n_points = all
 # ==========================================================
 # DỮ LIỆU ĐẦU VÀO (Dán 2 cột dọc hoặc nhập hàng ngang bên dưới):
 # ==========================================================
-x = 1.2 1.5 1.7 1.9 2.1 2.4
-y = 0.7247 0.1415 -0.2577 -0.6466 -1.0097 -1.4748
+1.57	2.4625
+1.59	2.5857
+1.62	2.772
+1.64	2.897
+1.67	3.086
+1.71	3.3404
+1.74	3.5328

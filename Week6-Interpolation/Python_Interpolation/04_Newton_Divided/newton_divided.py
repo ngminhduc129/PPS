@@ -98,43 +98,46 @@ def run_newton_divided_single(points, table, mode="forward", eval_x=None, sectio
 
     # 3. Đa thức tổng P(x) = sum(D_i * B_i(x))
     N_total = np.zeros(n + 1, dtype=float)
-    step_rows = []
     for i in range(n + 1):
         Di = d_coeffs[i]
         Ni = Di * B_list[i]
         N_total[:len(Ni)] += Ni
-        
-        # Biểu thức tích dạng chuỗi
-        if i == 0:
-            b_expr = "1"
-        else:
-            factors = [f"(x - {nodes[j]})" for j in range(i)]
-            b_expr = "*".join(factors)
-            
-        step_rows.append({
-            "i": i,
-            "Mốc xuất phát x_base": nodes[0],
-            "Hệ số D_i": Di,
-            "Biểu thức tích B_i(x)": b_expr,
-            "Đa thức số hạng N_i(x)": [round(v, 8) for v in Ni.tolist()]
-        })
-    df_steps = pd.DataFrame(step_rows)
 
-    # 4. Tạo công thức dạng tích
+    # Hệ số đa thức theo bậc giảm dần x^n ... x^0 (dùng cho phương pháp Horner)
+    coeffs_desc = [N_total[k] for k in range(n, -1, -1)]
+    col_powers = [f"x^{deg}" if deg > 0 else "x^0" for deg in range(n, -1, -1)]
+
+    # 4. Bảng tích (Product Table) - CHỈ GHI DUY NHẤT HỆ SỐ CÁC BẬC
+    prod_table_rows = []
+    for i in range(n + 1):
+        node_str = "-" if i == 0 else f"{nodes[i-1]:g}"
+        deg_coeffs = [(B_list[i][k] if k <= i else 0.0) for k in range(n, -1, -1)]
+        row_dict = {"Mốc x_k": node_str}
+        for idx, deg_name in enumerate(col_powers):
+            val = deg_coeffs[idx]
+            row_dict[deg_name] = f"{val:.8g}" if abs(val) >= 1e-12 else "0"
+        prod_table_rows.append(row_dict)
+    df_prod_table = pd.DataFrame(prod_table_rows)
+
+    # 5. Tạo công thức dạng tích
     product_terms = []
     for i in range(n + 1):
         Di = d_coeffs[i]
         if abs(Di) < 1e-12: continue
         sign = "+ " if Di >= 0 and len(product_terms) > 0 else ("- " if Di < 0 and len(product_terms) > 0 else "")
         val = abs(Di) if len(product_terms) > 0 else Di
-        b_expr = step_rows[i]["Biểu thức tích B_i(x)"]
+        if i == 0:
+            b_expr = "1"
+        else:
+            factors = [f"(x - {nodes[j]})" for j in range(i)]
+            b_expr = "*".join(factors)
         if i == 0:
             product_terms.append(f"{val:.8g}")
         else:
             product_terms.append(f"{sign}{val:.8g}*{b_expr}")
     product_form_str = " ".join(product_terms) if product_terms else "0"
 
-    # 5. Lập báo cáo 5 phần
+    # Lập báo cáo chi tiết
     lines = []
     lines.append("=" * 85)
     lines.append(f"{section_prefix}NỘI SUY NEWTON TỶ SAI PHÂN - {tname}")
@@ -143,64 +146,65 @@ def run_newton_divided_single(points, table, mode="forward", eval_x=None, sectio
     lines.append(f"Thứ tự mốc sử dụng: {nodes}")
     lines.append(f"Quy tắc chọn hệ số: {trace_desc}\n")
 
-    lines.append(f"1. BẢNG HỆ SỐ NỘI SUY {tname}:")
+    # 1. VECTOR HỆ SỐ NỘI SUY
+    lines.append(f"1. VECTOR HỆ SỐ NỘI SUY {tname}:")
     lines.append("-" * 85)
+    c_vector_str = "[" + ", ".join([f"{v:.8g}" for v in d_coeffs]) + "]"
+    lines.append(f"C_{'tien' if is_fwd else 'lui'} = {c_vector_str}\n")
     coeff_rows = []
     for i in range(n + 1):
         coeff_rows.append({
             "Bậc i": i,
-            "Ký hiệu tỷ sai phân": f"f[x_0, ..., x_{i}]" if is_fwd else f"f[x_n, ..., x_{n-i}]",
-            "Giá trị D_i": d_coeffs[i],
-            "Biểu thức tích B_i(x)": step_rows[i]["Biểu thức tích B_i(x)"]
+            "Ký hiệu": f"f[x_0, ..., x_{i}]" if is_fwd else f"f[x_n, ..., x_{n-i}]",
+            "Hệ số D_i": f"{d_coeffs[i]:.8g}"
         })
     lines.append(pd.DataFrame(coeff_rows).to_string(index=False))
 
-    lines.append(f"\n2. BẢNG TÍCH VÀ CÁC BƯỚC DỰNG ĐA THỨC SỐ HẠNG N_i(x) = D_i * B_i(x):")
+    # 2. BẢNG TÍCH (CHỈ GHI MÌNH HỆ SỐ)
+    lines.append(f"\n2. BẢNG TÍCH {tname} (CHỈ GHI HỆ SỐ CÁC ĐA THỨC TÍCH):")
     lines.append("-" * 85)
-    lines.append(df_steps[["i", "Hệ số D_i", "Biểu thức tích B_i(x)", "Đa thức số hạng N_i(x)"]].to_string(index=False))
+    lines.append(df_prod_table.to_string(index=False))
 
-    lines.append(f"\n3. BẢNG HỆ SỐ ĐA THỨC NỘI SUY KHAI TRIỂN P(x):")
+    # 3. ĐA THỨC NỘI SUY VÀ HỆ SỐ DÙNG CHO PHƯƠNG PHÁP HORNER
+    lines.append(f"\n3. ĐA THỨC NỘI SUY VÀ HỆ SỐ DÙNG CHO PHƯƠNG PHÁP HORNER:")
     lines.append("-" * 85)
-    df_p_coeffs = pd.DataFrame({"Bậc (x^k)": np.arange(n + 1), "Hệ số a_k": N_total})
+    dtns_vector_str = "[" + ", ".join([f"{v:.8g}" for v in coeffs_desc]) + "]"
+    lines.append(f"Vector hệ số ĐTNS (từ bậc cao xuống bậc thấp x^n ... x^0):")
+    lines.append(f"ĐTNS_{'tien' if is_fwd else 'lui'} = {dtns_vector_str}\n")
+    lines.append("Bảng hệ số đa thức P(x):")
+    df_p_coeffs = pd.DataFrame({"Bậc (x^k)": col_powers, "Hệ số": [f"{v:.8g}" for v in coeffs_desc]})
     lines.append(df_p_coeffs.to_string(index=False))
-
-    lines.append(f"\n4. ĐA THỨC NỘI SUY P(x):")
-    lines.append("-" * 85)
-    lines.append(f"a) Dạng tích Newton (chưa khai triển):")
+    lines.append(f"\na) Dạng tích Newton (chưa khai triển):")
     lines.append(f"   P_{mode}(x) = {product_form_str}")
     lines.append(f"\nb) Dạng chính tắc (đã khai triển theo lũy thừa của x):")
     lines.append(f"   P_{mode}(x) = {poly_str(N_total, var='x')}")
 
+    # 4. BẢNG TÍNH GIÁ TRỊ THEO SƠ ĐỒ HORNER TẠI x*
     val_final = None
     dict_derivs = {}
-    lines.append(f"\n5. GIÁ TRỊ NỘI SUY VÀ ĐẠO HÀM TẠI ĐIỂM XÁC ĐỊNH{' (x* = ' + str(eval_x) + ')' if eval_x is not None else ''}:")
+    lines.append(f"\n4. BẢNG TÍNH GIÁ TRỊ THEO SƠ ĐỒ HORNER{' TẠI x* = ' + str(eval_x) if eval_x is not None else ''}:")
     lines.append("-" * 85)
     if eval_x is not None:
-        eval_rows = []
-        cum_sum = 0.0
-        term_vals = []
-        for i in range(n + 1):
-            bi_val = float(sum(c * (eval_x ** deg) for deg, c in enumerate(B_list[i])))
-            di = d_coeffs[i]
-            ti = di * bi_val
-            cum_sum += ti
-            term_vals.append(ti)
-            eval_rows.append({
-                "i": i,
-                "B_i(x*)": bi_val,
-                "D_i": di,
-                "Số hạng T_i": ti,
-                "Tổng dồn P_i(x*)": cum_sum
-            })
-        lines.append(pd.DataFrame(eval_rows).to_string(index=False))
-        val_final = cum_sum
-        lines.append(f"\n=> GIÁ TRỊ NỘI SUY:")
+        b_horner = [0.0] * (n + 1)
+        b_horner[0] = coeffs_desc[0]
+        for idx in range(1, n + 1):
+            b_horner[idx] = coeffs_desc[idx] + eval_x * b_horner[idx - 1]
+        
+        horner_rows = [
+            {"x*": "Hệ số ĐTNS", **{col_powers[idx]: f"{coeffs_desc[idx]:.8g}" for idx in range(n + 1)}},
+            {"x*": f"{eval_x:g}", **{col_powers[idx]: f"{b_horner[idx]:.8g}" for idx in range(n + 1)}}
+        ]
+        df_horner = pd.DataFrame(horner_rows)
+        lines.append(df_horner.to_string(index=False))
+        val_final = b_horner[-1]
+        lines.append(f"\n=> GIÁ TRỊ NỘI SUY (TỪ SƠ ĐỒ HORNER):")
         lines.append(f"   P_{mode}({eval_x}) = {val_final:.10f}")
 
-        # Tính đạo hàm
+        # 5. KẾT QUẢ ĐẠO HÀM CÁC CẤP
         derivs = compute_all_derivatives(N_total, eval_x)
         dict_derivs = {k: v for k, p, v in derivs}
-        lines.append(f"\n=> KẾT QUẢ ĐẠO HÀM CÁC CẤP TẠI x* = {eval_x}:")
+        lines.append(f"\n5. KẾT QUẢ ĐẠO HÀM CÁC CẤP TẠI x* = {eval_x}:")
+        lines.append("-" * 85)
         d_rows = []
         for k, p_poly, v_val in derivs:
             sym = "f'(x*)" if k == 1 else ("f''(x*)" if k == 2 else f"f^({k})(x*)")
@@ -238,6 +242,10 @@ def main():
 
     # Xây dựng bảng tỷ sai phân chung
     df_table, table = build_divided_diff_table(sub_points)
+    n_pts = len(sub_points)
+
+    c_fwd = [table[0, j] for j in range(n_pts)]
+    c_bwd = [table[n_pts - 1 - j, j] for j in range(n_pts)]
 
     mode_arg = args.type if args.type else params.get("type", "both")
     mode_arg = mode_arg.lower()
@@ -251,6 +259,11 @@ def main():
     out_sections.append("BẢNG TỶ SAI PHÂN CHUNG (DIVIDED DIFFERENCE TABLE)")
     out_sections.append("=" * 85)
     out_sections.append(df_table.to_string(index=False) + "\n")
+
+    c_fwd_str = "[" + ", ".join([f"{v:.8g}" for v in c_fwd]) + "]"
+    c_bwd_str = "[" + ", ".join([f"{v:.8g}" for v in c_bwd]) + "]"
+    out_sections.append(f"Vector hệ số nội suy C_tiến (đường chéo trên):\nC_tien = {c_fwd_str}\n")
+    out_sections.append(f"Vector hệ số nội suy C_lùi (đường chéo dưới):\nC_lui  = {c_bwd_str}\n")
 
     if mode_arg in ["forward", "tien"]:
         res, _, _, _ = run_newton_divided_single(sub_points, table, mode="forward", eval_x=eval_x)
