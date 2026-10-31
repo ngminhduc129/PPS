@@ -23,6 +23,7 @@ Tất cả các phương pháp nội suy được tổ chức theo cấu trúc m
 | [`10_Inverse_Function/`](10_Inverse_Function/) | Nội suy Hàm Ngược (Đổi biến $x=P(y)$) | `inverse_function.py` | `input.txt` | `output.txt` |
 | [`11_Loop_Inverse/`](11_Loop_Inverse/) | Lặp Nội suy Ngược ($t=\varphi(t)$) | `loop_inverse.py` | `input.txt` | `output.txt` |
 | [`12_Spline/`](12_Spline/) | Ghép trơn Spline (Linear, Quad, Cubic) | `spline.py` | `input.txt` | `output.txt` |
+| [`13_Least_Squares/`](13_Least_Squares/) | Bình phương tối thiểu (Least Squares) | `lsq.py` | `input.txt` | `output.txt` |
 
 ---
 
@@ -82,6 +83,18 @@ Tất cả các script phương pháp (`<method>.py`) đều hỗ trợ các tha
 - `--all`: Sử dụng toàn bộ mốc dữ liệu mà không cắt cửa sổ.
 - `-t <type>` hoặc `--type <type>`: Chỉ định trường hợp cụ thể (ví dụ `tien`, `lui`, `both`), mặc định luôn là `both` (tự động in tất cả các trường hợp).
 
+### Bình phương tối thiểu (Least Squares)
+Chạy từ thư mục `13_Least_Squares/`; mặc định đọc `input.txt`, so sánh các mô hình và ghi báo cáo vào `output.txt`:
+```bash
+python lsq.py
+```
+Chọn mô hình hoặc tập dữ liệu khác:
+```bash
+python lsq.py input.txt --model poly --degree 3 --eval_x 2.5
+python lsq.py path/to/data.csv --model exp --eval_x 2.5 --output report.txt
+```
+Các lựa chọn `--model`: `all`, `x_sinx`, `exp`, `power`, `poly`, `trig`, `hyper1`, `hyper2`, `hyper3`, `midterm`, `log`.
+
 ---
 
 ## 🌟 Tính năng: Tự động in TẤT CẢ các trường hợp (All Cases In One Run)
@@ -93,4 +106,3 @@ Tất cả các script phương pháp (`<method>.py`) đều hỗ trợ các tha
 - **`06_Gauss1` & `07_Gauss2`**: In đồng thời **Gauss I (Thuận)** + **Gauss II (Nghịch)** + So sánh tính đồng nhất tuyệt đối.
 - **`08_Stirling`**: In kết quả với **Mốc tâm $x_0$ tối ưu** + **Mốc tâm liền kề** + Đối chiếu kiểm chứng công thức lý thuyết $P_{stirling}(x^*) \equiv \frac{P_{gauss1}(x^*) + P_{gauss2}(x^*)}{2}$.
 - **`09_Bessel`**: In đồng thời dạng theo **Biến chuẩn hóa $t$** ($0 \le t \le 1$) và dạng theo **Biến đối xứng $u = t - 1/2$** ($-0.5 \le u \le 0.5$) kinh điển trong phòng thi + So sánh kiểm chứng tính đồng nhất 100%.
-
