@@ -83,6 +83,29 @@
           'good'
         ));
 
+        let intervalInfo = null;
+        for (let i = 0; i < xs.length - 1; i++) {
+          if (xbar >= xs[i] - 1e-10 && xbar <= xs[i + 1] + 1e-10) {
+            const k1 = i;
+            const k2 = i + 1;
+            const sub1 = PPS.central ? PPS.central.sub(k1) : String(k1);
+            const sub2 = PPS.central ? PPS.central.sub(k2) : String(k2);
+            intervalInfo = {
+              sub1: sub1,
+              sub2: sub2,
+              x1: xs[k1],
+              x2: xs[k2]
+            };
+            break;
+          }
+        }
+        if (intervalInfo) {
+          out.appendChild(ui.note(
+            'Điểm x̄ = ' + fmt(xbar, 4) + ' nằm trong khoảng [x' + intervalInfo.sub1 + ', x' + intervalInfo.sub2 + '] = [' + fmt(intervalInfo.x1, 4) + ', ' + fmt(intervalInfo.x2, 4) + '] (bước h = ' + fmt(result.h, 4) + '). Mốc sử dụng: [' + fmt(xs[0], 4) + ', ' + fmt(xs[xs.length - 1], 4) + '].',
+            'good'
+          ));
+        }
+
         out.appendChild(ui.section(t('common.formula'),
           ui.formula(result.mode === 'forward' ? t('newtonEq.formulaForward') : t('newtonEq.formulaBackward'), true)));
 

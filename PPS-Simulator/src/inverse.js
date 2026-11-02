@@ -811,6 +811,18 @@
       const evaluated = evaluateInverseWindow(window.rawX, window.rawY, bracket, ybar);
       const residual = forwardResidual(xs, ys, evaluated.xbar, ybar);
 
+      const bracketStr = '[' + PPS.format.fmt(bracket.x0, 3) + ', ' + PPS.format.fmt(bracket.x1, 3) + ']';
+      const stencilStr = '[' + PPS.format.fmt(window.rawX[0], 3) + ', ' + PPS.format.fmt(window.rawX[window.rawX.length - 1], 3) + ']';
+      const comparisons = [{
+        rootName: 'x*',
+        bracketStr: bracketStr,
+        stencilStr: stencilStr,
+        stencil: window.stencil,
+        methodName: 'Nội suy hàm ngược x = P(y)',
+        xbar: evaluated.xbar,
+        result: evaluated
+      }];
+
       results.push(Object.assign({
         mode: 'function',
         exact: false,
@@ -825,11 +837,97 @@
           xs: window.rawX,
           ys: window.rawY
         },
-        intervals: intervals
+        intervals: intervals,
+        comparisons: comparisons
       }, evaluated, { residual: residual }));
     }
 
     return results;
+  }
+
+  function buildStencilComparison(xs, ys, bracket, run, nPoints, attemptOpts) {
+    if (!bracket || bracket.exact) return [];
+    const k = bracket.k;
+    const m = (nPoints === 'all' || typeof nPoints !== 'number')
+      ? (run.end - run.start + 1)
+      : Math.min(nPoints, run.end - run.start + 1);
+    if (m < 2) return [];
+
+    const comparisons = [];
+    const formatRange = function (a, b) {
+      return '[' + Number(a).toFixed(3) + ', ' + Number(b).toFixed(3) + ']';
+    };
+    const bracketStr = formatRange(bracket.x0, bracket.x1);
+
+    // 1. Central (quanh tâm)
+    const half = Math.floor((m - 2) / 2);
+    let s1_start = Math.max(run.start, k - half);
+    let s1_end = s1_start + m - 1;
+    if (s1_end > run.end) {
+      s1_end = run.end;
+      s1_start = Math.max(run.start, s1_end - (m - 1));
+    }
+    const s1 = { start: s1_start, end: s1_end };
+    try {
+      const r1 = runIterationAttempt(xs, ys, bracket, s1, true, attemptOpts);
+      if (r1 && r1.xbar != null && isFinite(r1.xbar)) {
+        comparisons.push({
+          rootName: 'x*',
+          bracketStr: bracketStr,
+          stencilStr: formatRange(xs[s1.start], xs[s1.end]),
+          stencil: s1,
+          methodName: 'Newton tiến / lùi (quanh tâm)',
+          xbar: r1.xbar,
+          result: r1
+        });
+      }
+    } catch (e) {}
+
+    // 2. Backward from x_{k+1}
+    const s2_end = k + 1;
+    const s2_start = s2_end - (m - 1);
+    if (s2_start >= run.start && s2_end <= run.end) {
+      const s2 = { start: s2_start, end: s2_end };
+      try {
+        const r2 = runIterationAttempt(xs, ys, bracket, s2, false, attemptOpts);
+        if (r2 && r2.xbar != null && isFinite(r2.xbar)) {
+          const subK1 = PPS.central ? PPS.central.sub(k + 1) : String(k + 1);
+          comparisons.push({
+            rootName: 'x*',
+            bracketStr: bracketStr,
+            stencilStr: formatRange(xs[s2.start], xs[s2.end]),
+            stencil: s2,
+            methodName: 'Newton lùi (từ x' + subK1 + ' = ' + Number(xs[k + 1]).toFixed(3) + ')',
+            xbar: r2.xbar,
+            result: r2
+          });
+        }
+      } catch (e) {}
+    }
+
+    // 3. Forward from x_k
+    const s3_start = k;
+    const s3_end = s3_start + m - 1;
+    if (s3_start >= run.start && s3_end <= run.end) {
+      const s3 = { start: s3_start, end: s3_end };
+      try {
+        const r3 = runIterationAttempt(xs, ys, bracket, s3, true, attemptOpts);
+        if (r3 && r3.xbar != null && isFinite(r3.xbar)) {
+          const subK = PPS.central ? PPS.central.sub(k) : String(k);
+          comparisons.push({
+            rootName: 'x*',
+            bracketStr: bracketStr,
+            stencilStr: formatRange(xs[s3.start], xs[s3.end]),
+            stencil: s3,
+            methodName: 'Newton tiến (từ x' + subK + ' = ' + Number(xs[k]).toFixed(3) + ')',
+            xbar: r3.xbar,
+            result: r3
+          });
+        }
+      } catch (e) {}
+    }
+
+    return comparisons;
   }
 
   function solveAllIteration(xs, ys, ybar, opts) {
@@ -878,6 +976,7 @@
       const stencil = selectStencil(run.start, run.end, bracket.k, nPoints);
       const attempts = runDirections(xs, ys, bracket, stencil, directions, attemptOpts);
       const best = chooseAttempt(attempts);
+      const comparisons = buildStencilComparison(xs, ys, bracket, run, nPoints, attemptOpts);
 
       results.push(Object.assign({
         mode: 'iteration',
@@ -885,7 +984,8 @@
         nPoints: nPoints,
         run: run,
         stencil: stencil,
-        attempts: attempts
+        attempts: attempts,
+        comparisons: comparisons
       }, best));
     }
 
@@ -909,6 +1009,8 @@
     solveAllIteration: solveAllIteration,
     findBracket: findBracket,
     findBrackets: findBrackets,
-    scanMonotonicIntervals: scanMonotonicIntervals
+    scanMonotonicIntervals: scanMonotonicIntervals,
+    runIterationAttempt: runIterationAttempt,
+    buildStencilComparison: buildStencilComparison
   };
 })();

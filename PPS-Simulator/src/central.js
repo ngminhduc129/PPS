@@ -36,6 +36,35 @@
     return poly.trim(acc);
   }
 
+  function computeAllDerivatives(polyT, polyX, varVal, varName, h) {
+    const list = [];
+    const deg = Math.max(1, polyT.length - 1);
+    let curT = polyT.slice();
+    let curX = polyX.slice();
+
+    for (let k = 1; k <= deg; k++) {
+      curT = poly.derivativeCoefs(curT);
+      curX = poly.derivativeCoefs(curX);
+      const valT = poly.evaluate(curT, varVal);
+      const valX = valT / Math.pow(h, k);
+
+      const symbol = k === 1 ? "f'(x̄)" : (k === 2 ? "f''(x̄)" : (k === 3 ? "f'''(x̄)" : ("f^(" + k + ")(x̄)")));
+      const symbolT = k === 1 ? ("P'(" + varName + "*)") : (k === 2 ? ("P''(" + varName + "*)") : (k === 3 ? ("P'''(" + varName + "*)") : ("P^(" + k + ")(" + varName + "*)")));
+
+      list.push({
+        k: k,
+        symbol: symbol,
+        symbolT: symbolT,
+        valT: valT,
+        valX: valX,
+        polyT: curT,
+        polyX: curX,
+        formulaStr: "P^(" + k + ")(" + varName + "*) / h" + (k > 1 ? PPS.format.superscript(k) : "")
+      });
+    }
+    return list;
+  }
+
   function diffTable(values) {
     const size = values.length;
     const D = Array.from({ length: size }, function () { return new Array(size).fill(null); });
@@ -338,6 +367,7 @@
       const nodesZ = xs.slice(start, start + 2 * N);
       const cVector = built.terms.map(function (t) { return t.coef * factorial(t.j); });
       const dVector = built.terms.map(function (t) { return t.coef; });
+      const allDerivs = computeAllDerivatives(P_trimmed, polyX, u, 'u', h);
       const productTable = built.terms.map(function (term) {
         return {
           j: term.j,
@@ -378,6 +408,7 @@
         variable: 'u',
         value: ev.value,
         derivative: ev.derivative / h,
+        derivatives: allDerivs,
         usedIndices: range(2 * N).map(function (i) { return start + i; }),
         evalAt: function (x) {
           return poly.evaluate(P, (x - centerX) / h - 0.5);
@@ -412,6 +443,7 @@
     const nodesZ = xs.slice(start, start + 2 * N + 1);
     const cVector = built.terms.map(function (t) { return t.coef * factorial(t.j); });
     const dVector = built.terms.map(function (t) { return t.coef; });
+    const allDerivs = computeAllDerivatives(P_trimmed, polyX, t, 't', h);
     const productTable = built.terms.map(function (term) {
       return {
         j: term.j,
@@ -452,6 +484,7 @@
       variable: 't',
       value: ev.value,
       derivative: ev.derivative / h,
+      derivatives: allDerivs,
       usedIndices: range(2 * N + 1).map(function (i) { return start + i; }),
       evalAt: function (x) {
         return poly.evaluate(P, (x - centerX) / h);

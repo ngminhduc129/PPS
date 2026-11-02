@@ -550,6 +550,52 @@
 
         const totalRoots = all.length;
 
+        // BẢNG TỔNG HỢP MỐC SỬ DỤNG VÀ KHOẢNG CÁCH LY (CHUẨN ĐỀ THI)
+        const allExamRows = [];
+        all.forEach(function (res, resIdx) {
+          const rootLabel = all.length > 1 ? ('x*' + (PPS.central ? PPS.central.sub(resIdx + 1) : ('_' + (resIdx + 1)))) : 'x*';
+          if (res.exact) {
+            allExamRows.push([
+              { text: rootLabel, class: 'rowhead hl' },
+              { text: '[' + fmt(res.bracket.x, 3) + ', ' + fmt(res.bracket.x, 3) + ']' },
+              { text: '[' + fmt(res.bracket.x, 3) + ']' },
+              { text: 'Trùng mốc x' + (res.nodeIndex != null && PPS.central ? PPS.central.sub(res.nodeIndex) : '') },
+              { text: fmt(res.xbar, 6), class: 'accent hl', style: 'font-family: monospace; font-weight: bold;' }
+            ]);
+          } else if (res.comparisons && res.comparisons.length) {
+            res.comparisons.forEach(function (cmp) {
+              allExamRows.push([
+                { text: rootLabel, class: 'rowhead hl' },
+                { text: cmp.bracketStr },
+                { text: cmp.stencilStr },
+                { text: cmp.methodName },
+                { text: fmt(cmp.xbar, 6), class: 'accent hl', style: 'font-family: monospace; font-weight: bold;' }
+              ]);
+            });
+          } else {
+            const bStr = res.bracket ? ('[' + fmt(res.bracket.x0, 3) + ', ' + fmt(res.bracket.x1, 3) + ']') : '—';
+            const sStr = res.stencil && res.stencil.xs ? ('[' + fmt(res.stencil.xs[0], 3) + ', ' + fmt(res.stencil.xs[res.stencil.xs.length - 1], 3) + ']') : '—';
+            allExamRows.push([
+              { text: rootLabel, class: 'rowhead hl' },
+              { text: bStr },
+              { text: sStr },
+              { text: res.mode === 'function' ? 'Nội suy hàm ngược x = P(y)' : methodLabel(res.method) },
+              { text: fmt(res.xbar, 6), class: 'accent hl', style: 'font-family: monospace; font-weight: bold;' }
+            ]);
+          }
+        });
+
+        if (allExamRows.length) {
+          const examTable = ui.table([
+            t('inverse.colRootSymbol'),
+            t('inverse.colBracket'),
+            t('inverse.colStencil'),
+            t('inverse.colMethodApplied'),
+            t('inverse.colResult')
+          ], allExamRows);
+          out.appendChild(ui.section(t('inverse.examTableTitle'), examTable));
+        }
+
         if (totalRoots === 1 && mode === 'function') {
           // CÁCH 1: Nội suy hàm ngược x = P(y)
           renderFunctionDetail(all[0]).forEach(function (node) {

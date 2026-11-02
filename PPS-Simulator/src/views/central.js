@@ -45,6 +45,7 @@
       { value: 'bessel', label: t('central.bessel') }
     ], 'auto');
     const nIn = ui.input({ value: 'auto' });
+    const kIn = ui.input({ value: '1', placeholder: '1, 2, ...' });
     const out = ui.el('div');
 
     const form = ui.card(t('common.input'),
@@ -52,7 +53,8 @@
       ui.grid(
         ui.field(t('central.xbar'), xbarIn),
         ui.field(t('central.formula'), formulaSel),
-        ui.field('N', nIn, t('central.NHint'))
+        ui.field('N', nIn, t('central.NHint')),
+        ui.field(t('central.orderK'), kIn, t('central.orderKHint'))
       ),
       ui.actions(
         ui.button('▶ ' + t('common.run'), run, { variant: 'primary' }),
@@ -91,14 +93,75 @@
         });
 
         const varName = result.variable;
+
+        let kOrder = 1;
+        const kText = kIn.value.trim();
+        if (kText) {
+          const parsedK = ui.parseNumber(kText);
+          kOrder = Math.max(1, Math.round(parsedK));
+        }
+
+        let selectedDeriv = null;
+        if (result.derivatives && result.derivatives.length) {
+          if (kOrder <= result.derivatives.length) {
+            selectedDeriv = result.derivatives[kOrder - 1];
+          } else {
+            selectedDeriv = {
+              k: kOrder,
+              symbol: "f^(" + kOrder + ")(x̄)",
+              symbolT: "P^(" + kOrder + ")(" + varName + "*)",
+              valT: 0,
+              valX: 0,
+              polyT: [0],
+              polyX: [0],
+              formulaStr: "P^(" + kOrder + ")(" + varName + "*) / h" + (kOrder > 1 ? PPS.format.superscript(kOrder) : "")
+            };
+          }
+        }
+
         const summary = [
           { key: t('central.formulaLabel'), value: formulaLabel(result.formula), small: true, className: 'accent' },
           { key: 'N', value: String(result.N) },
           { key: t('central.center'), value: fmt(result.centerX, 6) },
-          { key: 'f(x̄)', value: fmt(result.value, 8), className: 'green' },
-          { key: 'f′(x̄)', value: fmt(result.derivative, 8), className: 'orange' }
+          { key: 'f(x̄)', value: fmt(result.value, 8), className: 'green' }
         ];
+        if (selectedDeriv) {
+          summary.push({
+            key: selectedDeriv.symbol,
+            value: fmt(selectedDeriv.valX, 8),
+            className: 'orange'
+          });
+        } else {
+          summary.push({ key: 'f′(x̄)', value: fmt(result.derivative, 8), className: 'orange' });
+        }
         out.appendChild(ui.kv(summary));
+
+        let intervalInfo = null;
+        for (let i = 0; i < xs.length - 1; i++) {
+          if (xbar >= xs[i] - 1e-10 && xbar <= xs[i + 1] + 1e-10) {
+            const k1 = i;
+            const k2 = i + 1;
+            const sub1 = PPS.central ? PPS.central.sub(k1) : String(k1);
+            const sub2 = PPS.central ? PPS.central.sub(k2) : String(k2);
+            const startX = xs[result.blockStart];
+            const endX = xs[result.blockStart + result.blockSize - 1];
+            intervalInfo = {
+              sub1: sub1,
+              sub2: sub2,
+              x1: xs[k1],
+              x2: xs[k2],
+              startX: startX,
+              endX: endX
+            };
+            break;
+          }
+        }
+        if (intervalInfo) {
+          out.appendChild(ui.note(
+            'Điểm x̄ = ' + fmt(xbar, 4) + ' nằm trong khoảng trung tâm [x' + intervalInfo.sub1 + ', x' + intervalInfo.sub2 + '] = [' + fmt(intervalInfo.x1, 4) + ', ' + fmt(intervalInfo.x2, 4) + '] (với bước h = ' + fmt(result.h, 4) + '). Mốc trung tâm x₀ = ' + fmt(result.centerX, 4) + ' · Mốc sử dụng chi tiết: [' + fmt(intervalInfo.startX, 4) + ', ' + fmt(intervalInfo.endX, 4) + '] (gồm ' + result.blockSize + ' mốc).',
+            'good'
+          ));
+        }
 
         if (result.autoReason) {
           const reasonKey = result.autoReason === 'stirling' ? 'central.reasonStirling'
@@ -118,7 +181,7 @@
             (varName === 't'
               ? 't = (x̄ − x₀)/h = ' + fmt(result.t, 8)
               : 't = (x̄ − x₀)/h = ' + fmt(result.t, 8) + '   ·   u = t − 1/2 = ' + fmt(result.u, 8))
-            + '   ·   f′(x̄) ≈ P′(t)/h',
+            + '   ·   f⁽ᵏ⁾(x̄) ≈ P⁽ᵏ⁾(' + varName + ')/hᵏ',
             true
           )
         ]));
@@ -249,6 +312,40 @@
           );
         }
         out.appendChild(ui.section(t('common.canonicalPoly'), polyNodes));
+
+        // Bảng đạo hàm các cấp tại x̄
+        if (result.derivatives && result.derivatives.length) {
+          const derivRows = result.derivatives.map(function (d) {
+            const isSelected = d.k === kOrder;
+            return [
+              { text: String(d.k), class: 'rowhead' + (isSelected ? ' hl' : '') },
+              { text: d.symbol, class: 'left' + (isSelected ? ' hl' : '') },
+              { text: fmt(d.valX, 8), class: (isSelected ? 'hl bold' : '') },
+              { text: fmt(d.valT, 8) },
+              { text: d.formulaStr, class: 'left dim' },
+              { text: polyToString(d.polyT, varName), class: 'left dim' }
+            ];
+          });
+          const derivTableEl = ui.table([
+            t('central.orderK') || 'Cấp k',
+            t('central.derivSymbol') || 'Ký hiệu',
+            t('central.derivValX') || 'Giá trị f^(k)(x̄)',
+            (t('central.derivValT') || 'Giá trị') + ' (P⁽ᵏ⁾(' + varName + '*))',
+            t('central.derivFormula') || 'Công thức quy đổi',
+            (t('central.derivPoly') || 'Đa thức đạo hàm') + ' P⁽ᵏ⁾(' + varName + ')'
+          ], derivRows);
+
+          const derivNotes = [
+            derivTableEl,
+            ui.note(
+              'Quy đổi đạo hàm: Với biến chuẩn hóa ' + varName + ' (bước h = ' + fmt(result.h, 6) + '), ta có d' + varName + '/dx = 1/h. ' +
+              'Do đó: dᵏf/dxᵏ(x̄) ≈ P⁽ᵏ⁾(' + varName + '*) / hᵏ' +
+              (selectedDeriv ? ' ⇒ Đạo hàm cấp k = ' + kOrder + ': ' + selectedDeriv.symbol + ' ≈ ' + fmt(selectedDeriv.valX, 8) : '') + '.',
+              'good'
+            )
+          ];
+          out.appendChild(ui.section(t('central.derivTableTitle') || 'Bảng đạo hàm các cấp tại x̄ (Stirling & Bessel)', derivNotes));
+        }
 
         // chart
         const xmin = xs[0];

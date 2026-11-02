@@ -163,6 +163,28 @@ test('Bessel reproduces a cubic', () => {
   close(r.derivative, 0.48, 1e-9);
 });
 
+test('Stirling and Bessel compute higher-order derivatives k=1, 2, 3 correctly', () => {
+  // f(x) = 2x^3 - 5x^2 + 3x - 1
+  // f'(x) = 6x^2 - 10x + 3 => f'(1.9) = 5.66
+  // f''(x) = 12x - 10 => f''(1.9) = 12.8
+  // f'''(x) = 12 => f'''(1.9) = 12
+  const f = x => 2 * x * x * x - 5 * x * x + 3 * x - 1;
+  const xs = [0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0];
+  const ys = xs.map(f);
+
+  const resS = PPS.central.interpolate(xs, ys, 1.9, { formula: 'stirling', N: 3 });
+  assert.ok(Array.isArray(resS.derivatives) && resS.derivatives.length >= 3);
+  close(resS.derivatives[0].valX, 5.66, 1e-8);
+  close(resS.derivatives[1].valX, 12.8, 1e-8);
+  close(resS.derivatives[2].valX, 12.0, 1e-8);
+
+  const resB = PPS.central.interpolate(xs, ys, 1.9, { formula: 'bessel', N: 3 });
+  assert.ok(Array.isArray(resB.derivatives) && resB.derivatives.length >= 3);
+  close(resB.derivatives[0].valX, 5.66, 1e-8);
+  close(resB.derivatives[1].valX, 12.8, 1e-8);
+  close(resB.derivatives[2].valX, 12.0, 1e-8);
+});
+
 test('auto formula chooses Stirling on a central point', () => {
   const r = PPS.central.interpolate(cxs, cys, 0.1, { formula: 'auto', N: 2 });
   assert.equal(r.formula, 'stirling');
@@ -481,6 +503,20 @@ test('iteration method computes product table and difference coefficient vectors
   close(res.cNormalized[1], 0.0692, 1e-8);
   close(res.cNormalized[2], 0.0458 / 2, 1e-8);
   close(res.cNormalized[3], -0.1445 / 6, 1e-8);
+});
+
+test('solveAll generates stencil comparisons (Central, Backward, Forward) for exam table', () => {
+  const xs = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6];
+  const ys = xs.map(x => x * x);
+  const all = PPS.inverse.solveAll(xs, ys, 1.7, { nPoints: 4 });
+  assert.equal(all.length, 1);
+  assert.ok(Array.isArray(all[0].comparisons) && all[0].comparisons.length > 0);
+  all[0].comparisons.forEach(c => {
+    assert.ok(c.bracketStr.startsWith('['));
+    assert.ok(c.stencilStr.startsWith('['));
+    assert.ok(typeof c.methodName === 'string');
+    assert.ok(isFinite(c.xbar));
+  });
 });
 
 console.log('\nSpline boundary conditions (Section 8)');
