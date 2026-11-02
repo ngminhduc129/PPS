@@ -7,6 +7,12 @@ import os, sys, argparse
 import numpy as np
 import pandas as pd
 
+try:
+    from pps_io import format_report_output
+except ImportError:
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from pps_io import format_report_output
+
 def choose_chebyshev_nodes(a: float, b: float, n: int):
     condition = 1 if (a == -1.0 and b == 1.0) else 0
     i_values = np.arange(0, n + 1)
@@ -51,7 +57,7 @@ def main():
     out = ["="*60, "KẾT QUẢ TÍNH MỐC CHEBYSHEV", "="*60,
            f"Khoảng [a, b]: [{a}, {b}]", f"Bậc n: {n} (Tổng số mốc: {n + 1})", "-"*60,
            df.to_string(index=False), "-"*60, f"Danh sách mốc x_i: {x_values.tolist()}"]
-    content = "\n".join(out)
+    content = format_report_output("\n".join(out), args.input_file)
     print("\n" + content)
     with open(args.output_file, "w", encoding="utf-8") as f:
         f.write(content + "\n")

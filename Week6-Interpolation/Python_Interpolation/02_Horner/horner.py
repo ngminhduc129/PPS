@@ -7,6 +7,12 @@ import os, sys, math, argparse
 import numpy as np
 import pandas as pd
 
+try:
+    from pps_io import format_report_output
+except ImportError:
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from pps_io import format_report_output
+
 def poly_str_from_coeffs(coeffs_high_to_low, var="x"):
     """
     Tạo chuỗi đa thức đẹp từ dãy hệ số bậc giảm dần [a_n, a_(n-1), ..., a_0]
@@ -116,8 +122,8 @@ def read_input_txt(filepath: str):
     Hỗ trợ cả dấu chấm thập phân, dấu phẩy danh sách hoặc phân cách phẩy.
     """
     if not os.path.exists(filepath):
-        return None, None, "desc"
-    coeffs, c = None, None
+        return None, None, "desc", None
+    coeffs, c, derivative_order = None, None, None
     order = "desc" # Mặc định bậc giảm dần a_n ... a_0
 
     with open(filepath, "r", encoding="utf-8") as f:
@@ -131,6 +137,8 @@ def read_input_txt(filepath: str):
                 v = v.strip()
                 if k in ["c", "x", "eval_x", "point"]:
                     c = float(v.replace(",", "."))
+                elif k in ["k", "derivative_order", "derivative", "cap_dao_ham"]:
+                    derivative_order = int(v)
                 elif k in ["order", "sort", "chieu"]:
                     order = v.lower()
                 elif k in ["coeffs", "a", "p", "he_so", "poly"]:
@@ -149,7 +157,7 @@ def read_input_txt(filepath: str):
                     except ValueError:
                         pass
 
-    return coeffs, c, order
+    return coeffs, c, order, derivative_order
 
 def main():
     s_dir = os.path.dirname(os.path.abspath(__file__))
@@ -157,13 +165,15 @@ def main():
     p.add_argument("input_file", nargs="?", default=os.path.join(s_dir, "input.txt"))
     p.add_argument("output_file", nargs="?", default=os.path.join(s_dir, "output.txt"))
     p.add_argument("-c", "--point", type=float, help="Điểm cần tính c")
+    p.add_argument("-k", "--derivative_order", type=int, help="Cấp đạo hàm cần lấy P^(k)(c), 0 <= k <= bậc đa thức")
     p.add_argument("--coeffs", nargs="+", type=float, help="Dãy hệ số của đa thức")
     p.add_argument("--order", choices=["asc", "desc"], default=None, help="Thứ tự hệ số (desc: a_n..a_0, asc: a_0..a_n)")
     args = p.parse_args()
 
-    file_coeffs, file_c, file_order = read_input_txt(args.input_file)
+    file_coeffs, file_c, file_order, file_derivative_order = read_input_txt(args.input_file)
     coeffs = args.coeffs if args.coeffs is not None else file_coeffs
     c = args.point if args.point is not None else file_c
+    derivative_order = args.derivative_order if args.derivative_order is not None else file_derivative_order
     order = args.order or file_order or "desc"
 
     if coeffs is None or c is None:
@@ -176,6 +186,9 @@ def main():
         coeffs_desc = list(coeffs)
 
     n = len(coeffs_desc) - 1
+    if derivative_order is not None and not 0 <= derivative_order <= n:
+        p.error(f"Cấp đạo hàm k phải nằm trong khoảng 0..{n}.")
+
     poly_display = poly_str_from_coeffs(coeffs_desc, var="x")
     coeffs_asc = list(reversed(coeffs_desc))
 
@@ -194,6 +207,8 @@ def main():
     lines.append(f"   - Đa thức ban đầu: P(x) = {poly_display}")
     lines.append(f"   - Bậc của đa thức: n = {n}")
     lines.append(f"   - Điểm đánh giá:   c = {c:g}")
+    if derivative_order is not None:
+        lines.append(f"   - Cấp đạo hàm yêu cầu: k = {derivative_order}")
     lines.append(f"   - Dãy hệ số lũy thừa giảm dần [a_n, ..., a_0]: [{', '.join([f'{v:.8g}' for v in coeffs_desc])}]")
     lines.append(f"   - Dãy hệ số lũy thừa tăng dần [a_0, ..., a_n]: [{', '.join([f'{v:.8g}' for v in coeffs_asc])}]")
 
@@ -219,6 +234,14 @@ def main():
     lines.append(f"5. BẢNG HORNER LẶP - TÍNH TẤT CẢ CÁC CẤP ĐẠO HÀM TẠI c = {c:g}:")
     lines.append("-" * 90)
     lines.append(df_derivs.to_string(index=False))
+
+    if derivative_order is not None:
+        derivative_row = df_derivs.iloc[derivative_order]
+        derivative_value = derivative_row[f"Đạo hàm P^(k)({c:g})"]
+        lines.append(
+            f"\n   >>> ĐẠO HÀM ĐƯỢC YÊU CẦU: "
+            f"P^({derivative_order})({c:g}) = {derivative_value:.10f} <<<"
+        )
 
     lines.append("\nChi tiết các cấp đạo hàm trọng tâm:")
     prime_map = {1: "'", 2: "''", 3: "'''"}
@@ -251,7 +274,7 @@ def main():
     lines.append("-" * 90)
     lines.append(f"P(x) = {taylor_str}")
 
-    content = "\n".join(lines)
+    content = format_report_output("\n".join(lines), args.input_file)
     print("\n" + content)
     with open(args.output_file, "w", encoding="utf-8") as f:
         f.write(content + "\n")

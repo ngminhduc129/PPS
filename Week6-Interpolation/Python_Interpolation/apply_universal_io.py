@@ -1,5 +1,5 @@
 """
-apply_universal_io.py - Script cập nhật đồng bộ tất cả 9 thư mục với pps_io và auto-windowing
+apply_universal_io.py - Script cập nhật đồng bộ tất cả các thư mục phương pháp với pps_io và auto-windowing
 """
 import os, shutil
 
@@ -15,13 +15,17 @@ folders = [
     "06_Gauss1",
     "07_Gauss2",
     "08_Stirling",
-    "09_Bessel"
+    "09_Bessel",
+    "10_Inverse_Function",
+    "11_Loop_Inverse",
+    "12_Spline",
+    "13_Least_Squares"
 ]
 
-# Copy pps_io.py vào từng folder
+# Copy pps_io.py vào từng folder để mỗi phương pháp tự chứa (self-contained)
 for f in folders:
     dest = os.path.join(BASE_DIR, f, "pps_io.py")
     shutil.copy2(PPS_IO_SRC, dest)
     print(f"Đã copy pps_io.py vào {f}")
 
-print("Hoàn tất copy pps_io.py!")
+print(f"Hoàn tất copy pps_io.py vào {len(folders)} thư mục phương pháp!")

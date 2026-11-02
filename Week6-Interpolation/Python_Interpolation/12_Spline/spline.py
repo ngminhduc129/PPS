@@ -20,10 +20,10 @@ import numpy as np
 import pandas as pd
 
 try:
-    from pps_io import parse_universal_input, select_window_for_method
+    from pps_io import format_report_output, parse_universal_input, select_window_for_method
 except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from pps_io import parse_universal_input, select_window_for_method
+    from pps_io import format_report_output, parse_universal_input, select_window_for_method
 
 # ==============================================================================
 # 1. LINEAR SPLINE (BẬC 1)
@@ -343,7 +343,7 @@ def main():
             res = solve_cubic_spline(points, eval_x=eval_x)
         output_reports.append(format_spline_report(res))
 
-    full_output = "\n\n".join(output_reports)
+    full_output = format_report_output("\n\n".join(output_reports), args.input_file)
     print("\n" + full_output)
     with open(args.output_file, "w", encoding="utf-8") as f:
         f.write(full_output + "\n")

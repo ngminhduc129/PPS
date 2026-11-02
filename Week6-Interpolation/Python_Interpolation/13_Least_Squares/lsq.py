@@ -33,14 +33,14 @@ from typing import List, Tuple, Callable, Dict, Any, Optional
 
 # Use the shared interpolation parser when this module is run from its folder.
 try:
-    from pps_io import parse_universal_input
+    from pps_io import format_report_output, parse_universal_input
 except ImportError:
     interpolation_dir = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "..")
     )
     if interpolation_dir not in sys.path:
         sys.path.insert(0, interpolation_dir)
-    from pps_io import parse_universal_input
+    from pps_io import format_report_output, parse_universal_input
 
 HAS_PPS_IO = True
 
@@ -897,56 +897,49 @@ Ví dụ sử dụng:
     if eval_x is not None:
         print(f"-> Mốc dự báo eval_x (x*) = {eval_x}")
 
-    # Chạy mô hình
-    if args.compare or args.model == "all":
-        compare_all_models(points, eval_x=eval_x)
-        # Đồng thời in chi tiết mô hình x_sinx (chính trong notebook) và exp
-        print("\n" + "=" * 80)
-        print("CHI TIẾT MÔ HÌNH GỐC TRONG NOTEBOOK pp6_LSQ.ipynb:")
-        print("=" * 80)
-        res_x_sinx = fit_notebook_linear_x_sinx(points)
-        res_x_sinx.print_report(eval_x=eval_x)
-    else:
-        res = None
-        if args.model == "x_sinx":
-            res = fit_notebook_linear_x_sinx(points)
-        elif args.model == "exp":
-            res = fit_exponential(points)
-        elif args.model == "power":
-            res = fit_power_law(points)
-        elif args.model == "poly":
-            res = fit_polynomial(points, degree=args.degree)
-        elif args.model == "trig":
-            res = fit_trigonometric(points)
-        elif args.model == "hyper1":
-            res = fit_hyperbolic(points, "a+b/x")
-        elif args.model == "hyper2":
-            res = fit_hyperbolic(points, "1/(a+bx)")
-        elif args.model == "hyper3":
-            res = fit_hyperbolic(points, "x/(a+bx)")
-        elif args.model == "midterm":
-            res = fit_midterm_k70(points)
-        elif args.model == "log":
-            res = fit_logarithmic(points)
+    import io
+    from contextlib import redirect_stdout
 
-        if res:
-            res.print_report(eval_x=eval_x)
+    report_buffer = io.StringIO()
+    with redirect_stdout(report_buffer):
+        if args.compare or args.model == "all":
+            compare_all_models(points, eval_x=eval_x)
+            print("\n" + "=" * 80)
+            print("CHI TIẾT MÔ HÌNH GỐC TRONG NOTEBOOK pp6_LSQ.ipynb:")
+            print("=" * 80)
+            fit_notebook_linear_x_sinx(points).print_report(eval_x=eval_x)
+        else:
+            res = None
+            if args.model == "x_sinx":
+                res = fit_notebook_linear_x_sinx(points)
+            elif args.model == "exp":
+                res = fit_exponential(points)
+            elif args.model == "power":
+                res = fit_power_law(points)
+            elif args.model == "poly":
+                res = fit_polynomial(points, degree=args.degree)
+            elif args.model == "trig":
+                res = fit_trigonometric(points)
+            elif args.model == "hyper1":
+                res = fit_hyperbolic(points, "a+b/x")
+            elif args.model == "hyper2":
+                res = fit_hyperbolic(points, "1/(a+bx)")
+            elif args.model == "hyper3":
+                res = fit_hyperbolic(points, "x/(a+bx)")
+            elif args.model == "midterm":
+                res = fit_midterm_k70(points)
+            elif args.model == "log":
+                res = fit_logarithmic(points)
 
-    # Xuất ra file nếu người dùng yêu cầu
-    if args.output:
-        print(f"\nĐang lưu kết quả vào '{args.output}'...")
-        # Redirect stdout to file
-        import io
-        from contextlib import redirect_stdout
-        buffer = io.StringIO()
-        with redirect_stdout(buffer):
-            if args.compare or args.model == "all":
-                compare_all_models(points, eval_x=eval_x)
-                fit_notebook_linear_x_sinx(points).print_report(eval_x=eval_x)
-            elif res:
+            if res:
                 res.print_report(eval_x=eval_x)
+
+    rounding_input = input_file or os.path.join(script_dir, "input.txt")
+    report = format_report_output(report_buffer.getvalue(), rounding_input)
+    print(report)
+    if args.output:
         with open(args.output, "w", encoding="utf-8") as f:
-            f.write(buffer.getvalue())
+            f.write(report)
         print(f"-> Đã lưu thành công vào '{args.output}'!")
 
 

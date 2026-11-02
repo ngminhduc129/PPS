@@ -13,10 +13,10 @@ import numpy as np
 import pandas as pd
 
 try:
-    from pps_io import parse_universal_input, select_window_for_method
+    from pps_io import format_report_output, parse_universal_input, select_window_for_method
 except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from pps_io import parse_universal_input, select_window_for_method
+    from pps_io import format_report_output, parse_universal_input, select_window_for_method
 
 def build_divided_diff_table(points):
     """
@@ -337,7 +337,7 @@ def main():
         summary_lines.append("     + Nếu thêm mốc ở ĐẦU bảng: Công thức LÙI giữ nguyên các số hạng cũ, chỉ cần cộng thêm 1 số hạng mới.")
         out_sections.append("\n".join(summary_lines))
 
-    final_content = "\n".join(out_sections)
+    final_content = format_report_output("\n".join(out_sections), args.input_file)
     print("\n" + final_content)
     with open(args.output_file, "w", encoding="utf-8") as f:
         f.write(final_content + "\n")

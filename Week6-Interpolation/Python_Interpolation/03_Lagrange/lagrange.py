@@ -14,10 +14,10 @@ import numpy as np
 import pandas as pd
 
 try:
-    from pps_io import parse_universal_input, select_window_for_method
+    from pps_io import format_report_output, parse_universal_input, select_window_for_method
 except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from pps_io import parse_universal_input, select_window_for_method
+    from pps_io import format_report_output, parse_universal_input, select_window_for_method
 
 def lagrange_core(points, eval_x=None, var="x"):
     """
@@ -232,7 +232,7 @@ def main():
     sum_lines.append("   - Hiện tượng Runge: Khi tăng số mốc cách đều lên quá lớn (N > 10), đa thức Lagrange toàn cục dễ dao động mạnh ở 2 biên, do đó trong phòng thi nên ưu tiên cắt cửa sổ cục bộ 4 hoặc 5 mốc quanh x*.")
     sections.append("\n".join(sum_lines))
 
-    final_content = "\n".join(sections)
+    final_content = format_report_output("\n".join(sections), args.input_file)
     print("\n" + final_content)
     with open(args.output_file, "w", encoding="utf-8") as f:
         f.write(final_content + "\n")

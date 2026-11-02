@@ -13,10 +13,10 @@ import numpy as np
 import pandas as pd
 
 try:
-    from pps_io import parse_universal_input, select_window_for_method
+    from pps_io import format_report_output, parse_universal_input, select_window_for_method
 except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from pps_io import parse_universal_input, select_window_for_method
+    from pps_io import format_report_output, parse_universal_input, select_window_for_method
 
 def build_finite_diff_tables(points):
     """
@@ -377,7 +377,7 @@ def main():
         summary_lines.append("     + Lúc này các lũy thừa t_b^k nhỏ dần, chuỗi Newton lùi hội tụ nhanh và ít sai số nhất.")
         out_sections.append("\n".join(summary_lines))
 
-    final_content = "\n".join(out_sections)
+    final_content = format_report_output("\n".join(out_sections), args.input_file)
     print("\n" + final_content)
     with open(args.output_file, "w", encoding="utf-8") as f:
         f.write(final_content + "\n")

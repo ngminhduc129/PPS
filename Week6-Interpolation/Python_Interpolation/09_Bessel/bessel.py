@@ -15,10 +15,10 @@ import numpy as np
 import pandas as pd
 
 try:
-    from pps_io import parse_universal_input, select_window_for_method
+    from pps_io import format_report_output, parse_universal_input, select_window_for_method
 except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from pps_io import parse_universal_input, select_window_for_method
+    from pps_io import format_report_output, parse_universal_input, select_window_for_method
 
 def build_finite_diff_table(points, x0_idx):
     """
@@ -638,7 +638,7 @@ def main():
         sum_lines.append("   - Khác với Stirling tối ưu gần một mốc đơn lẻ (|t| <= 0.25 quanh x0), Bessel phân bố đều sai số giữa hai mốc liên tiếp x0 và x1.")
         sections.append("\n".join(sum_lines))
 
-    final_output = "\n".join(sections)
+    final_output = format_report_output("\n".join(sections), args.input_file)
     print("\n" + final_output)
     with open(args.output_file, "w", encoding="utf-8") as f:
         f.write(final_output + "\n")

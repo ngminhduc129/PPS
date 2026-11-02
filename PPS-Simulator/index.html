@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PPS Simulator — Mô phỏng thuật toán phương pháp số</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">PPS</div>
+      <div class="brand-text">
+        <h1 data-i18n="app.title">Mô phỏng thuật toán PPS</h1>
+        <p data-i18n="app.subtitle">Phương pháp số — nội suy, spline, bình phương tối thiểu</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <div class="precision-box" title="Số chữ số thập phân sau dấu phẩy (mặc định: 7)" data-i18n-title="common.decimalsTitle">
+        <label for="precision-input" class="precision-label" data-i18n="common.decimalsShort">Làm tròn:</label>
+        <input type="number" id="precision-input" class="precision-input" min="0" max="15" value="7" step="1">
+      </div>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <button type="button" id="lang-vi" class="lang-btn" data-lang="vi">VI</button>
+        <button type="button" id="lang-en" class="lang-btn" data-lang="en">EN</button>
+      </div>
+      <button type="button" id="theme-toggle" class="icon-btn" title="Theme">🌙</button>
+      <button type="button" id="copy-report-btn" class="icon-btn" title="Sao chép báo cáo" data-i18n-title="common.copyReport">📋</button>
+      <button type="button" id="export-btn" class="icon-btn" title="Tải báo cáo .txt" data-i18n-title="export.title">💾</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar" aria-label="Algorithms"></aside>
+    <main class="main" id="main"></main>
+  </div>
+
+  <footer class="footer">
+    <span data-i18n="app.footer">Dựa trên tài liệu “Algorithm.md” — Tổng hợp thuật toán phương pháp số chuyên sâu.</span>
+    <span class="footer-tech">HTML · CSS · JavaScript · SVG</span>
+  </footer>
+
+  <script src="assets/vendor/xlsx.full.min.js"></script>
+  <script>if(typeof window!=='undefined'&&typeof XLSX!=='undefined'){window.XLSX=XLSX;}</script>
+  <script src="src/i18n.js"></script>
+  <script src="src/format.js"></script>
+  <script src="src/linalg.js"></script>
+  <script src="src/polynomial.js"></script>
+  <script src="src/horner.js"></script>
+  <script src="src/chebyshev.js"></script>
+  <script src="src/lagrange.js"></script>
+  <script src="src/newton.js"></script>
+  <script src="src/central.js"></script>
+  <script src="src/inverse.js"></script>
+  <script src="src/spline.js"></script>
+  <script src="src/leastSquares.js"></script>
+  <script src="src/chart.js"></script>
+  <script src="src/animate.js"></script>
+  <script src="src/ui.js"></script>
+  <script src="src/export.js"></script>
+  <script src="src/views/horner.js"></script>
+  <script src="src/views/chebyshev.js"></script>
+  <script src="src/views/lagrange.js"></script>
+  <script src="src/views/newton-divided.js"></script>
+  <script src="src/views/newton-equal.js"></script>
+  <script src="src/views/central.js"></script>
+  <script src="src/views/inverse.js"></script>
+  <script src="src/views/spline.js"></script>
+  <script src="src/views/least-squares.js"></script>
+  <script src="src/views/comparison.js"></script>
+  <script src="src/app.js"></script>
+</body>
+</html>

@@ -5,10 +5,60 @@ Hỗ trợ tự động:
 2. Tự động nhận diện và trích xuất điểm cần tính x* (eval_x) và y* (eval_y).
 3. Hỗ trợ nhập tự do: hàng ngang x/y, rút gọn x0+h+y, hoặc 2 cột dọc.
 4. Auto-Windowing: Tự động trích xuất cửa sổ điểm lân cận quanh x* cho các bài toán dữ liệu lớn (100+ mốc).
+5. Làm tròn số hiển thị mặc định 7 chữ số; tùy chỉnh bằng round_digits = N trong input.txt.
 """
 import os, sys, re
 import numpy as np
 import pandas as pd
+
+_MINUS_TRANSLATION = str.maketrans({
+    "\u2212": "-",  # MINUS SIGN
+    "\u2010": "-",  # HYPHEN
+    "\u2011": "-",  # NON-BREAKING HYPHEN
+    "\u2012": "-",  # FIGURE DASH
+    "\u2013": "-",  # EN DASH
+    "\u2014": "-",  # EM DASH
+    "\ufe63": "-",  # SMALL HYPHEN-MINUS
+    "\uff0d": "-",  # FULLWIDTH HYPHEN-MINUS
+})
+
+def _parse_float(value):
+    text = str(value).strip().translate(_MINUS_TRANSLATION)
+    text = re.sub(r"^([+-])\s+(?=\d|\.)", r"\1", text)
+    return float(text.replace(",", "."))
+
+def format_report_output(report, input_file, default_digits=7):
+    """Round displayed decimal values using round_digits from the input file."""
+    digits = default_digits
+    try:
+        with open(input_file, "r", encoding="utf-8", errors="ignore") as source:
+            for line in source:
+                match = re.match(r"\s*round_digits\s*[:=]\s*(\d+)", line, re.IGNORECASE)
+                if match:
+                    digits = int(match.group(1))
+                    break
+    except FileNotFoundError:
+        pass
+
+    if not 0 <= digits <= 15:
+        raise ValueError("round_digits phải nằm trong khoảng 0..15.")
+
+    number_pattern = re.compile(r"(?<![\w.])[+-]?(?:\d+\.\d+|\.\d+|\d+)(?:[eE][+-]?\d+)?(?![\w])")
+
+    def round_number(match):
+        value = match.group(0)
+        line_prefix = report[:match.start()].rsplit("\n", 1)[-1]
+        line = line_prefix + report[match.start():].split("\n", 1)[0]
+        if not line_prefix.strip() and re.match(rf"\s*{re.escape(value)}\.\s", line):
+            return value
+        numeric_value = float(value)
+        if "e" in value.lower() or (numeric_value != 0 and round(numeric_value, digits) == 0):
+            return f"{numeric_value:.{digits}e}"
+        if "." not in value:
+            return value
+        return f"{numeric_value:.{digits}f}"
+
+    return number_pattern.sub(round_number, report)
 
 def _resolve_filepath(path_str):
     if not isinstance(path_str, str):
@@ -62,7 +112,8 @@ def parse_universal_input(filepath_or_text):
     for line in lines:
         if not line:
             continue
-        clean = line.strip()
+        clean = line.strip().translate(_MINUS_TRANSLATION)
+        clean = re.sub(r"([+-])\s+(?=\d|\.)", r"\1", clean)
         
         # Bắt các cấu hình tham số dạng key = value hoặc key: value
         if ("=" in clean or ":" in clean) and not clean.startswith("#"):
@@ -73,11 +124,11 @@ def parse_universal_input(filepath_or_text):
             v = parts[1].strip()
             
             if k in ["eval_x", "x_eval", "x*", "x_bar", "xbar", "x_calc"]:
-                try: params["eval_x"] = float(v.replace(",", "."))
+                try: params["eval_x"] = _parse_float(v)
                 except: pass
                 continue
             elif k in ["eval_y", "y_eval", "y*", "y_bar", "ybar", "y_calc"]:
-                try: params["eval_y"] = float(v.replace(",", "."))
+                try: params["eval_y"] = _parse_float(v)
                 except: pass
                 continue
             elif k in ["n_points", "num_points", "so_moc", "points_count"]:
@@ -99,22 +150,28 @@ def parse_universal_input(filepath_or_text):
                 except: pass
                 continue
             elif k == "x0":
-                try: params["x0"] = float(v.replace(",", "."))
+                try: params["x0"] = _parse_float(v)
                 except: pass
                 continue
             elif k == "h":
-                try: params["h"] = float(v.replace(",", "."))
+                try: params["h"] = _parse_float(v)
                 except: pass
                 continue
+            elif k in ["x_interval", "x_range", "x_domain"]:
+                bounds = [_parse_float(t) for t in re.split(r"[\s,;()\[\]]+", v) if t]
+                if len(bounds) != 2:
+                    raise ValueError(f"{k} cần đúng hai cận, ví dụ: x_interval = -1, 1")
+                params["x_interval"] = (bounds[0], bounds[1])
+                continue
             elif k in ["x", "x_i", "xs", "x_values"]:
-                toks = [float(t.replace(",", ".")) for t in re.split(r"[\s,;\t]+", v) if t]
+                toks = [_parse_float(t) for t in re.split(r"[\s,;\t]+", v) if t]
                 if len(toks) == 1 and "eval_x" not in params:
                     params["eval_x"] = toks[0]
                 elif len(toks) > 1:
                     explicit_x = toks
                 continue
             elif k in ["y", "y_i", "ys", "y_values"]:
-                toks = [float(t.replace(",", ".")) for t in re.split(r"[\s,;\t]+", v) if t]
+                toks = [_parse_float(t) for t in re.split(r"[\s,;\t]+", v) if t]
                 if len(toks) == 1 and "eval_y" not in params:
                     params["eval_y"] = toks[0]
                 elif len(toks) > 1:
@@ -134,9 +191,9 @@ def parse_universal_input(filepath_or_text):
                 elif k_low in ["degree", "order", "bac"]:
                     params["degree"] = int(v)
                 elif k_low in ["eval_x", "x*", "x_bar"]:
-                    params["eval_x"] = float(v.replace(",", "."))
+                    params["eval_x"] = _parse_float(v)
                 elif k_low in ["eval_y", "y*", "y_bar"]:
-                    params["eval_y"] = float(v.replace(",", "."))
+                    params["eval_y"] = _parse_float(v)
                 elif k_low == "type":
                     params["type"] = "backward" if ("back" in v.lower() or "lui" in v.lower()) else "forward"
             continue
@@ -151,6 +208,14 @@ def parse_universal_input(filepath_or_text):
         if "x0" in params and "h" in params and explicit_y is not None:
             points = [(params["x0"] + i * params["h"], explicit_y[i]) for i in range(len(explicit_y))]
             return points, params
+        if "x_interval" in params and explicit_y is not None:
+            if len(explicit_y) < 2:
+                raise ValueError("Cần ít nhất 2 giá trị Y để tạo các mốc X cách đều.")
+            x_left, x_right = params["x_interval"]
+            if x_left == x_right:
+                raise ValueError("Hai cận của x_interval phải khác nhau.")
+            x_values = np.linspace(x_left, x_right, len(explicit_y))
+            return list(zip(x_values.tolist(), explicit_y)), params
         return [], params
 
     # Kiểm tra dòng đầu tiên xem có phải Header của đề Midterm hay không
@@ -166,12 +231,12 @@ def parse_universal_input(filepath_or_text):
             t_low = token.lower()
             if t_low == "x" and idx + 1 < len(header_toks):
                 try:
-                    val = float(header_toks[idx + 1].replace(",", "."))
+                    val = _parse_float(header_toks[idx + 1])
                     if "eval_x" not in params: params["eval_x"] = val
                 except ValueError: pass
             elif t_low == "y" and idx + 1 < len(header_toks):
                 try:
-                    val = float(header_toks[idx + 1].replace(",", "."))
+                    val = _parse_float(header_toks[idx + 1])
                     if "eval_y" not in params: params["eval_y"] = val
                 except ValueError: pass
         
@@ -193,9 +258,9 @@ def parse_universal_input(filepath_or_text):
                 # Kiểm tra 2 số đầu tiên là x_i, y_i
                 try:
                     if x_bar_col is not None and "eval_x" not in params and len(row2_toks) >= 3:
-                        params["eval_x"] = float(row2_toks[2].replace(",", "."))
+                        params["eval_x"] = _parse_float(row2_toks[2])
                     if y_bar_col is not None and "eval_y" not in params and len(row2_toks) >= 4:
-                        params["eval_y"] = float(row2_toks[3].replace(",", "."))
+                        params["eval_y"] = _parse_float(row2_toks[3])
                 except ValueError: pass
         
         # Lấy dữ liệu 2 cột x_i, y_i từ start_row_idx trở đi
@@ -205,8 +270,8 @@ def parse_universal_input(filepath_or_text):
             cols = [t.strip() for t in re.split(r"[\t,;]+", r) if t.strip()]
             if len(cols) >= 2:
                 try:
-                    xi = float(cols[0].replace(",", "."))
-                    yi = float(cols[1].replace(",", "."))
+                    xi = _parse_float(cols[0])
+                    yi = _parse_float(cols[1])
                     points.append((xi, yi))
                 except ValueError:
                     pass
@@ -227,7 +292,7 @@ def parse_universal_input(filepath_or_text):
     for r in raw_rows:
         toks = _split_line_cols(r)
         try:
-            nums = [float(t.replace(",", ".")) for t in toks]
+            nums = [_parse_float(t) for t in toks]
             if nums: lines_of_nums.append(nums)
         except ValueError:
             pass
@@ -268,20 +333,20 @@ def _parse_from_dataframe(df, params):
     for idx, c in enumerate(col_names):
         c_low = c.lower()
         if c_low == "x" and idx + 1 < len(col_names):
-            try: params["eval_x"] = float(col_names[idx + 1])
+            try: params["eval_x"] = _parse_float(col_names[idx + 1])
             except: pass
         elif c_low == "y" and idx + 1 < len(col_names):
-            try: params["eval_y"] = float(col_names[idx + 1])
+            try: params["eval_y"] = _parse_float(col_names[idx + 1])
             except: pass
         elif "x_bar" in c_low or "xbar" in c_low:
             val = df[df.columns[idx]].dropna().iloc[0] if not df[df.columns[idx]].dropna().empty else None
             if val is not None:
-                try: params["eval_x"] = float(val)
+                try: params["eval_x"] = _parse_float(val)
                 except: pass
         elif "y_bar" in c_low or "ybar" in c_low:
             val = df[df.columns[idx]].dropna().iloc[0] if not df[df.columns[idx]].dropna().empty else None
             if val is not None:
-                try: params["eval_y"] = float(val)
+                try: params["eval_y"] = _parse_float(val)
                 except: pass
 
     # Lấy 2 cột đầu làm x_i, y_i
@@ -291,7 +356,7 @@ def _parse_from_dataframe(df, params):
     sub = df[[x_col, y_col]].dropna()
     for _, row in sub.iterrows():
         try:
-            points.append((float(row[0]), float(row[1])))
+            points.append((_parse_float(row[0]), _parse_float(row[1])))
         except:
             pass
     return points, params

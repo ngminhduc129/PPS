@@ -15,10 +15,10 @@ import numpy as np
 import pandas as pd
 
 try:
-    from pps_io import parse_universal_input, select_window_for_method
+    from pps_io import format_report_output, parse_universal_input, select_window_for_method
 except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from pps_io import parse_universal_input, select_window_for_method
+    from pps_io import format_report_output, parse_universal_input, select_window_for_method
 
 def find_monotonic_intervals(points):
     """
@@ -151,7 +151,7 @@ def poly_str(coeffs, var="y"):
         terms.append(f"{sign} {term}" if len(terms) > 0 else term)
     return " ".join(terms) if terms else "0"
 
-def solve_inverse_function(points, eval_y=None, degree=None, n_points=None):
+def _solve_inverse_on_run(points, eval_y=None, degree=None, n_points=None):
     """
     Thực hiện giải bài toán nội suy ngược bằng phương pháp hàm ngược.
     """
@@ -233,6 +233,96 @@ def solve_inverse_function(points, eval_y=None, degree=None, n_points=None):
         "derivs": derivs
     }
 
+def solve_inverse_function(points, eval_y=None, degree=None, n_points=None):
+    """Find every data-bracketed root and interpolate on its monotone run."""
+    if eval_y is None:
+        return _solve_inverse_on_run(points, eval_y, degree, n_points)
+
+    intervals = find_monotonic_intervals(points)
+    y_values = [point[1] for point in points]
+    scale = max(1.0, max(abs(value) for value in y_values))
+    y_tol = 1e-12 * scale
+
+    roots = []
+    exact_indices = [
+        i for i, value in enumerate(y_values)
+        if abs(value - eval_y) <= y_tol
+    ]
+    for i in exact_indices:
+        roots.append({
+            "kind": "exact",
+            "bracket_indices": (i, i),
+            "bracket": (points[i], points[i]),
+            "root": points[i][0],
+            "result": None
+        })
+
+    for i in range(len(points) - 1):
+        y_left, y_right = y_values[i], y_values[i + 1]
+        if (y_left - eval_y) * (y_right - eval_y) < 0:
+            run = intervals[
+                (intervals["start_idx"] <= i) &
+                (intervals["end_idx"] >= i + 1)
+            ]
+            if run.empty:
+                continue
+            start_idx = int(run.iloc[0]["start_idx"])
+            end_idx = int(run.iloc[0]["end_idx"])
+            branch_points = points[start_idx:end_idx + 1]
+            branch_result = _solve_inverse_on_run(
+                branch_points, eval_y, degree, n_points
+            )
+            root_value = branch_result["val_x"]
+            used_linear_fallback = False
+            x_min, x_max = sorted((points[i][0], points[i + 1][0]))
+            if not x_min <= root_value <= x_max:
+                branch_result = _solve_inverse_on_run(
+                    points[i:i + 2], eval_y, degree=1, n_points=2
+                )
+                root_value = branch_result["val_x"]
+                used_linear_fallback = True
+            roots.append({
+                "kind": "bracket",
+                "bracket_indices": (i, i + 1),
+                "bracket": (points[i], points[i + 1]),
+                "root": root_value,
+                "run_indices": (start_idx, end_idx),
+                "used_linear_fallback": used_linear_fallback,
+                "result": branch_result
+            })
+
+    if roots:
+        base_result = next(
+            (root["result"] for root in roots if root["result"] is not None),
+            None
+        )
+        if base_result is None:
+            base_result = _solve_inverse_on_run(points, None, degree, n_points)
+        base_result["df_intervals"] = intervals
+        base_result["eval_y"] = eval_y
+        base_result["val_x"] = roots[0]["root"]
+        base_result["derivs"] = (
+            roots[0]["result"]["derivs"]
+            if roots[0]["result"] is not None else []
+        )
+        base_result["solutions"] = roots
+        base_result["msg_monotone"] = (
+            f"Tìm thấy {len(roots)} khoảng cách ly/nghiệm trong bảng dữ liệu."
+        )
+        return base_result
+
+    result = _solve_inverse_on_run(points, None, degree, n_points)
+    result["df_intervals"] = intervals
+    result["eval_y"] = eval_y
+    result["val_x"] = None
+    result["derivs"] = []
+    result["solutions"] = []
+    result["msg_monotone"] = (
+        f"Không tìm thấy khoảng cách ly nghiệm cho y* = {eval_y} "
+        "trong các mốc dữ liệu."
+    )
+    return result
+
 def format_inverse_report(res):
     lines = [
         "=" * 80,
@@ -242,8 +332,51 @@ def format_inverse_report(res):
         f"Thông tin khoảng đơn điệu: {res['msg_monotone']}",
         "\n1. BẢNG CÁC KHOẢNG ĐƠN ĐIỆU CỦA HÀM SỐ TRÊN TẬP DỮ LIỆU:",
         res["df_intervals"].to_string(index=False) if not res["df_intervals"].empty else "Không đủ điểm để phân tích.",
-        "\n2. CÁC MỐC NỘI SUY ĐƯỢC CHỌN VÀ HOÁN ĐỔI VAI TRÒ (y_i -> BIẾN, x_i -> HÀM):"
     ]
+
+    solutions = res.get("solutions")
+    if res["eval_y"] is not None and solutions is not None:
+        lines.append("\n2. TẤT CẢ CÁC KHOẢNG CÁCH LY NGHIỆM:")
+        if not solutions:
+            lines.append(
+                f"Không có đoạn [x_i, x_(i+1)] nào kẹp y* = {res['eval_y']}."
+            )
+        for root_idx, solution in enumerate(solutions, 1):
+            (x_left, y_left), (x_right, y_right) = solution["bracket"]
+            if solution["kind"] == "exact":
+                lines.append(
+                    f"{root_idx}. y* trùng giá trị nút: x* = {solution['root']:.10f} "
+                    f"(x_i = {x_left:.10f}, y_i = {y_left:.10f})."
+                )
+            else:
+                run_start, run_end = solution["run_indices"]
+                lines.append(
+                    f"{root_idx}. [{x_left:.10f}, {x_right:.10f}], "
+                    f"Y = [{y_left:.10f}, {y_right:.10f}], "
+                    f"nhánh đơn điệu mốc #{run_start}..#{run_end}; "
+                    f"x* ≈ {solution['root']:.10f}"
+                    + (" (dùng nội suy tuyến tính nghịch đảo vì đa thức cục bộ cho nghiệm ngoài khoảng kẹp)." if solution["used_linear_fallback"] else ".")
+                )
+
+        for root_idx, solution in enumerate(solutions, 1):
+            branch = solution["result"]
+            if branch is None:
+                continue
+            lines.append(
+                f"\n3.{root_idx}. NỘI SUY TRÊN NHÁNH TÌM NGHIỆM {root_idx}:"
+            )
+            _append_inverse_branch_report(lines, branch)
+    else:
+        lines.append(
+            "\n2. CÁC MỐC NỘI SUY ĐƯỢC CHỌN VÀ HOÁN ĐỔI VAI TRÒ "
+            "(y_i -> BIẾN, x_i -> HÀM):"
+        )
+        _append_inverse_branch_report(lines, res)
+
+    lines.append("=" * 80)
+    return "\n".join(lines)
+
+def _append_inverse_branch_report(lines, res):
     df_pts = pd.DataFrame(res["chosen_points"], columns=["x_i (Gốc)", "y_i (Gốc)"])
     lines.append(df_pts.to_string(index=True))
 
@@ -254,9 +387,12 @@ def format_inverse_report(res):
     lines.append(res["df_coeffs"].to_string(index=False))
     lines.append(f"\n-> Dạng chính tắc đa thức nội suy ngược:\n   P(y) = {res['poly_str']}")
 
-    lines.append("\n5. KẾT QUẢ TÍNH TOÁN NGHIỆM TẠI ĐIỂM y* (eval_y):")
+    lines.append("\nKẾT QUẢ TÍNH TOÁN NGHIỆM TẠI y* (eval_y):")
     if res["eval_y"] is not None:
         lines.append(f"   * Giá trị cần tìm nghiệm: y* = {res['eval_y']}")
+        if res["val_x"] is None:
+            lines.append("   * Không tính được nghiệm vì không có khoảng cách ly trong dữ liệu.")
+            return
         lines.append(f"   * Nghiệm x* tìm được:     x* = P({res['eval_y']}) = {res['val_x']:.10f}")
         if res["derivs"]:
             lines.append("   * Đạo hàm của hàm ngược x = f^(-1)(y) tại y*:")
@@ -264,9 +400,6 @@ def format_inverse_report(res):
                 lines.append(f"     + Đạo hàm cấp {order}: (x)^{{({order})}}({res['eval_y']}) = {dval:.10f}")
     else:
         lines.append("   [Lưu ý] Không có giá trị y* (eval_y) trong input. Chỉ xây dựng đa thức tổng quát.")
-
-    lines.append("=" * 80)
-    return "\n".join(lines)
 
 def main():
     s_dir = os.path.dirname(os.path.abspath(__file__))
@@ -288,7 +421,7 @@ def main():
     n_pts_cfg = args.n_points or params.get("n_points", None)
 
     res = solve_inverse_function(points, eval_y=eval_y, degree=degree_cfg, n_points=n_pts_cfg)
-    final_output = format_inverse_report(res)
+    final_output = format_report_output(format_inverse_report(res), args.input_file)
 
     print("\n" + final_output)
     with open(args.output_file, "w", encoding="utf-8") as f:

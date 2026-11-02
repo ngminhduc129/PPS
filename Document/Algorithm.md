@@ -14,6 +14,8 @@
 7. [Phương pháp Nội suy ngược (Hàm ngược & Phương pháp lặp $t = \varphi(t)$)](#7-phương-pháp-nội-suy-ngược)
 8. [Hàm ghép trơn Spline & Thuật toán Thomas (TDMA giải hệ 3 đường chéo)](#8-hàm-ghép-trơn-spline--thuật-toán-thomas-tdma)
 9. [Phương pháp Bình phương tối thiểu (Mô hình Tuyến tính & Phi tuyến)](#9-phương-pháp-bình-phương-tối-thiểu-least-squares)
+10. [Thuật toán sơ lược theo từng phương pháp](#10-thuật-toán-sơ-lược-theo-từng-phương-pháp)
+11. [Bảng tổng hợp so sánh các thuật toán](#11-bảng-tổng-hợp-so-sánh-các-thuật-toán)
 
 ---
 
@@ -23,71 +25,131 @@
 - **Đầu vào (Input):**
   - Mảng hệ số của đa thức bậc $N$: $P(x) = a_N x^N + a_{N-1} x^{N-1} + \dots + a_1 x + a_0$.
   - Điểm đánh giá: $x = c$.
-  - Cấp đạo hàm cao nhất cần tính: $K$ ($0 \le K \le N$).
+  - Cấp đạo hàm cần tính: $k$ ($0 \le k \le N$), nếu yêu cầu tính đạo hàm.
 - **Đầu ra (Output):**
   - Giá trị đa thức $P(c)$.
   - Đa thức thương $Q(x)$ khi chia $P(x)$ cho $(x - c)$.
-  - Các cấp đạo hàm: $P'(c), P''(c), \dots, P^{(K)}(c)$.
-  - Khai triển Taylor của $P(x)$ tại lân cận điểm $c$: $P(x) = \sum_{m=0}^N \frac{P^{(m)}(c)}{m!} (x - c)^m$.
+  - Giá trị đạo hàm cấp $k$: $P^{(k)}(c)$.
 
 ---
 
-### 1.2. Thuật toán chi tiết trong 1 cell (Horner 1 lần & Horner lặp đạo hàm, Taylor)
+### 1.2. Thuật toán Horner tính giá trị $P(c)$
 
 ```text
-Thuật toán Horner_Tong_Hop_Va_Taylor(a, N, c, K):
-Đầu vào: 
-   - Mảng hệ số đa thức a[0..N] theo lũy thừa giảm dần: P(x) = a[0]*x^N + a[1]*x^(N-1) + ... + a[N]
-   - Điểm đánh giá c
-   - Cấp đạo hàm cao nhất cần tính K (0 <= K <= N)
-Đầu ra: 
+Thuật toán Horner_Tinh_Gia_Tri(a, N, c):
+Đầu vào:
+   - a[0..N]: hệ số theo lũy thừa giảm dần,
+     P(x) = a[0]*x^N + a[1]*x^(N-1) + ... + a[N]
+   - Điểm cần tính c
+Đầu ra:
    - Giá trị P(c)
-   - Đa thức thương Q(x) khi chia P(x) cho (x - c)
-   - Mảng đạo hàm D[0..K] = [P(c), P'(c), P''(c), ..., P^(K)(c)]
-   - Mảng hệ số khai triển Taylor Taylor_Coeff[0..K] = [b_0, b_1, ..., b_K] sao cho P(x) = sum(b_m * (x - c)^m)
 
-BƯỚC 1: KHỞI TẠO BỘ NHỚ LÀM VIỆC
-      b = copy(a)               // Mảng lưu hệ số thương và số dư in-place (kích thước N + 1)
-      D = mảng kích thước (K + 1) chứa số 0
-      Taylor_Coeff = mảng kích thước (K + 1) chứa số 0
-      fact = 1.0                // Biến lưu giai thừa m!
-
-BƯỚC 2: VÒNG LẶP HORNER LẶP (QUÉT TÍNH TỪ CẤP m = 0 ĐẾN K)
-      VÒNG LẶP NGOÀI m từ 0 đến K:
-            // Cập nhật mảng b bằng quy tắc nhân cộng liên tiếp:
-            VÒNG LẶP TRONG i từ 1 đến (N - m):
-                  b[i] = b[i] + c * b[i - 1]
-            
-            // Số dư sau lần chia thứ m nằm tại vị trí b[N - m]:
-            rem = b[N - m]
-            
-            // Tính giai thừa m! phục vụ công thức đạo hàm Taylor:
-            NẾU m > 0 THÌ:
-                  fact = fact * m
-            
-            // Lưu hệ số Taylor và giá trị đạo hàm cấp m:
-            Taylor_Coeff[m] = rem           // b_m = P^(m)(c) / m!
-            D[m] = rem * fact               // P^(m)(c) = rem * m!
-            
-            // Riêng tại lượt đầu tiên m = 0: Lưu đa thức thương Q(x)
-            NẾU m == 0 THÌ:
-                  Q = [b[0], b[1], ..., b[N - 1]]
-
-BƯỚC 3: TRẢ VỀ KẾT QUẢ TOÀN DIỆN
-      P_c = D[0]                            // Giá trị P(c) chính là đạo hàm cấp 0
-      Trả về: P_c, Q, D, Taylor_Coeff
+1. p = a[0]
+2. Với i từ 1 đến N:
+      p = p * c + a[i]
+3. Trả về p
 ```
 
----
+### 1.3. Thuật toán Horner tìm đa thức thương khi chia cho $(x-c)$
 
-### 1.3. Đánh giá kỹ thuật & Lưu ý thực hành
+```text
+Thuật toán Horner_Tim_Thuong(a, N, c):
+Đầu vào:
+   - a[0..N]: hệ số theo lũy thừa giảm dần của đa thức P bậc N
+   - Điểm chia c
+Đầu ra:
+   - Hệ số q[0..N-1] của thương Q(x), theo lũy thừa giảm dần
+   - Số dư r = P(c)
 
-| Tiêu chí | Đánh giá / Đặc tính kỹ thuật |
-| :--- | :--- |
-| **Độ phức tạp thời gian** | $O(K \cdot N)$ phép nhân - cộng (với $K = N$ là $O(N^2)$; nếu chỉ tính giá trị $P(c)$ thì $K = 0 \implies O(N)$) |
-| **Độ phức tạp không gian** | $O(N)$ lưu trữ in-place trên mảng $b$, không tốn thêm bộ nhớ ma trận |
-| **Quan hệ số dư & Đạo hàm Taylor** | Số dư lượt chia thứ $m$ thỏa mãn: $\text{rem}_m = \frac{P^{(m)}(c)}{m!} \implies P^{(m)}(c) = m! \cdot \text{rem}_m$ |
-| **Khai triển Taylor tại lân cận $c$** | $P(x) = \sum_{m=0}^K \text{rem}_m (x - c)^m$ |
+1. Nếu N = 0:
+      q = mảng rỗng
+      r = a[0]
+      Trả về q, r
+
+2. Khởi tạo mảng q[0..N-1]:
+      q[0] = a[0]
+
+3. Với i từ 1 đến N - 1:
+      q[i] = a[i] + c * q[i - 1]
+
+4. Tính số dư:
+      r = a[N] + c * q[N - 1]
+
+5. Trả về q, r
+   (P(x) = (x - c) * Q(x) + r)
+```
+
+### 1.4. Thuật toán Horner tính đạo hàm cấp $k$ tại $c$
+
+```text
+Thuật toán Horner_Tinh_Dao_Ham(a, N, c, k):
+Đầu vào:
+   - a[0..N]: hệ số theo lũy thừa giảm dần của đa thức P bậc N
+   - Điểm đánh giá c
+   - Cấp đạo hàm k, với 0 <= k <= N
+Đầu ra:
+   - Giá trị P^(k)(c)
+
+1. Nếu k < 0 hoặc k > N thì báo lỗi cấp đạo hàm không hợp lệ.
+
+2. Khởi tạo:
+      D[0] = a[0]                 // Đang xây dựng đa thức bằng Horner
+      Với j từ 1 đến k:
+            D[j] = 0
+
+3. Với i từ 1 đến N:
+      Với j từ min(i, k) giảm dần về 1:
+            D[j] = c * D[j] + j * D[j - 1]
+      D[0] = c * D[0] + a[i]
+
+4. Trả về D[k]
+   (Sau mỗi bước, D[j] lưu đạo hàm cấp j của đa thức Horner hiện tại
+    tại c; do đó không cần nhân thêm k!.)
+```
+
+### 1.5. Thuật toán Horner khai triển Taylor tại $c$
+
+```text
+Thuật toán Horner_Khai_Trien_Taylor(a, N, c):
+Đầu vào:
+   - a[0..N]: hệ số theo lũy thừa giảm dần của đa thức
+     P(x) = a[0]*x^N + a[1]*x^(N-1) + ... + a[N]
+   - Tâm khai triển c
+Đầu ra:
+   - Taylor_Coeff[0..N] = [b_0, b_1, ..., b_N], sao cho
+     P(x) = b_0 + b_1*(x-c) + ... + b_N*(x-c)^N
+   - Tương đương b_m = P^(m)(c) / m!
+
+1. q = copy(a)
+   Taylor_Coeff = mảng kích thước N + 1
+
+2. Với m từ 0 đến N:
+      degree = N - m
+
+      // Chia đa thức hiện tại q cho (x - c) bằng Horner.
+      // Các hệ số q đang được lưu theo lũy thừa giảm dần.
+      Với i từ 1 đến degree:
+            q[i] = q[i] + c * q[i - 1]
+
+      rem = q[degree]
+      Taylor_Coeff[m] = rem
+
+      // Thương trở thành đa thức cần chia ở lượt kế tiếp.
+      Nếu degree > 0:
+            q = [q[0], q[1], ..., q[degree - 1]]
+
+3. Trả về Taylor_Coeff
+   (P^(m)(c) = m! * Taylor_Coeff[m], nếu cần các đạo hàm.)
+```
+
+### 1.6. Đánh giá kỹ thuật & Lưu ý thực hành
+
+| Thuật toán | Độ phức tạp thời gian | Độ phức tạp không gian |
+| :--- | :--- | :--- |
+| **Tính $P(c)$** | $O(N)$ | $O(1)$ |
+| **Tìm thương và số dư** | $O(N)$ | $O(N)$ để lưu các hệ số thương |
+| **Tính đạo hàm cấp $k$** | $O(Nk)$ | $O(k)$ |
+| **Khai triển Taylor đến bậc $N$** | $O(N^2)$ | $O(N)$ |
 
 > [!WARNING]
 > **Bẫy thứ tự hệ số đầu vào:**  
@@ -171,7 +233,8 @@ Thuật toán Noi_Suy_Lagrange_Toan_Dien(X, Y, n, eval_x):
    - Điểm đánh giá eval_x
 Đầu ra:
    - Giá trị nội suy L_n(eval_x)
-   - Vector hệ số đa thức chính tắc P[0..n] = [a_n, a_{n-1}, ..., a_0] sao cho L_n(x) = sum(a_k * x^k)
+   - Vector hệ số đa thức chính tắc P[0..n] = [a_n, a_{n-1}, ..., a_0]
+     sao cho L_n(x) = sum từ k=0 đến n của P[k] * x^(n-k)
 
 PHẦN 1: TÍNH TRỰC TIẾP GIÁ TRỊ L_n(eval_x) THEO ĐA THỨC CƠ BẢN
       tong_L = 0.0
@@ -378,25 +441,32 @@ Thuật toán Noi_Suy_Newton_Sai_Phan_Huu_Han_Toan_Dien(X, Y, n, eval_x, Huong):
 ================================================================================
 BƯỚC 1: KIỂM TRA BƯỚC CÁCH ĐỀU h VÀ LẬP BẢNG SAI PHÂN HỮU HẠN D
 ================================================================================
-1. Tính bước cách đều: h = X[1] - X[0]
-2. Khởi tạo ma trận D kích thước (n + 1) x (n + 1) chứa số 0 (hoặc NaN)
-3. Gán cột 0: D[i, 0] = Y[i] với mọi i = 0..n
+1. Kiểm tra n >= 1, độ dài X và Y đều bằng n + 1.
+   Nếu không đúng, báo lỗi và dừng.
+2. Tính bước cách đều: h = X[1] - X[0]
+   Nếu h = 0, báo lỗi và dừng.
+   tol_h = 1e-10 * max(1, |X[0]|, |X[n]|, |h|)
+   Với i từ 1 đến n - 1:
+         Nếu |(X[i + 1] - X[i]) - h| > tol_h:
+               báo lỗi "Các mốc X không cách đều" và dừng.
+3. Khởi tạo ma trận D kích thước (n + 1) x (n + 1) chứa số 0 (hoặc NaN)
+4. Gán cột 0: D[i, 0] = Y[i] với mọi i = 0..n
 
-4. VÒNG LẶP NGOÀI j từ 1 đến n:        // j là cấp sai phân (cột)
+5. VÒNG LẶP NGOÀI j từ 1 đến n:        // j là cấp sai phân (cột)
       VÒNG LẶP TRONG i từ 0 đến (n - j): // i là hàng
             D[i, j] = D[i + 1, j - 1] - D[i, j - 1]
 
 ================================================================================
 BƯỚC 2: XÁC ĐỊNH HƯỚNG NỘI SUY VÀ TÍNH BIẾN CHUẨN HÓA t
 ================================================================================
-5. NẾU Huong == "TU_DONG" THÌ:
+6. NẾU Huong == "TU_DONG" THÌ:
       x_mid = (X[0] + X[n]) / 2.0
       Huong = (eval_x <= x_mid) ? "TIEN" : "LUI"
 
 ================================================================================
 BƯỚC 3: TÍNH GIÁ TRỊ NỘI SUY THEO CÔNG THỨC TIẾN HOẶC LÙI
 ================================================================================
-6. NẾU Huong == "TIEN" THÌ:
+7. NẾU Huong == "TIEN" THÌ:
       // Điểm mốc gốc x_0 ở đầu bảng:
       t = (eval_x - X[0]) / h
       val = D[0, 0]                     // y_0
@@ -408,9 +478,9 @@ BƯỚC 3: TÍNH GIÁ TRỊ NỘI SUY THEO CÔNG THỨC TIẾN HOẶC LÙI
             fact = fact * j
             val = val + (D[0, j] / fact) * t_prod
 
-7. NẾU Huong == "LUI" THÌ:
+8. NẾU Huong == "LUI" THÌ:
       // Điểm mốc gốc x_n ở cuối bảng:
-      t_b = (eval_x - X[n]) / h          // t_b <= 0
+      t_b = (eval_x - X[n]) / h          // t_b <= 0 khi eval_x nằm giữa X[0] và X[n]
       val = D[n, 0]                     // y_n
       t_prod = 1.0
       fact = 1.0
@@ -424,7 +494,7 @@ BƯỚC 3: TÍNH GIÁ TRỊ NỘI SUY THEO CÔNG THỨC TIẾN HOẶC LÙI
 ================================================================================
 BƯỚC 4: LẬP BẢNG TÍCH THEO BIẾN t VÀ TỔNG HỢP HỆ SỐ ĐA THỨC THEO t
 ================================================================================
-8. Khởi tạo danh sách đa thức cơ sở T_list gồm (n + 1) đa thức:
+9. Khởi tạo danh sách đa thức cơ sở T_list gồm (n + 1) đa thức:
       T_list[0] = [1.0]
       VÒNG LẶP j từ 1 đến n:
             NẾU Huong == "TIEN":
@@ -432,7 +502,7 @@ BƯỚC 4: LẬP BẢNG TÍCH THEO BIẾN t VÀ TỔNG HỢP HỆ SỐ ĐA THỨ
             NGƯỢC LẠI:
                   T_list[j] = convolve(T_list[j - 1], [1.0, +(j - 1)])
 
-9. Khởi tạo vector Poly_t kích thước (n + 1) chứa 0.0:
+10. Khởi tạo vector Poly_t kích thước (n + 1) chứa 0.0:
       fact = 1.0
       VÒNG LẶP j từ 0 đến n:
             NẾU j > 0: fact = fact * j
@@ -443,7 +513,7 @@ BƯỚC 4: LẬP BẢNG TÍCH THEO BIẾN t VÀ TỔNG HỢP HỆ SỐ ĐA THỨ
             VÒNG LẶP k từ 0 đến len_p - 1:
                   Poly_t[offset + k] = Poly_t[offset + k] + coeff * T_list[j][k]
 
-10. Trả về: Ma trận sai phân D, giá trị val (tại eval_x), biến t, vector Poly_t
+11. Trả về: Ma trận sai phân D, giá trị val (tại eval_x), biến t, vector Poly_t
 ```
 
 ---
@@ -478,8 +548,8 @@ Khi điểm nội suy $x^*$ nằm ở khoảng giữa bảng dữ liệu, các c
 - **Stirling (Trung bình cộng Gauss I & II - Khi $|t| \le 0.25$):**
   $$P(t) = y_0 + t \left(\frac{\Delta y_{-1} + \Delta y_0}{2}\right) + \frac{t^2}{2!} \Delta^2 y_{-1} + \frac{t(t^2 - 1^2)}{3!} \left(\frac{\Delta^3 y_{-2} + \Delta^3 y_{-1}}{2}\right) + \frac{t^2(t^2 - 1^2)}{4!} \Delta^4 y_{-2} + \dots$$
 
-- **Bessel (Số mốc chẵn $2N$, đặt $u = t - 1/2 \implies u \in [-0.25, 0.25]$):**
-  $$P(u) = \left(\frac{y_0 + y_1}{2}\right) + u \Delta y_0 + \frac{u^2 - \frac{1}{4}}{2!} \left(\frac{\Delta^2 y_{-1} + \Delta^2 y_0}{2}\right) + \frac{u(u^2 - \frac{1}{4})}{3!} \Delta^3 y_{-1} + \dots$$
+- **Bessel (Số mốc chẵn $2N$, đặt $t = \frac{x - (x_0 + x_1)/2}{h}$, với $x_0, x_1$ là cặp mốc trung tâm; công thức thường phù hợp nhất khi $|t| \le 0.25$):**
+  $$P(t) = \left(\frac{y_0 + y_1}{2}\right) + t \Delta y_0 + \frac{t^2 - \frac{1}{4}}{2!} \left(\frac{\Delta^2 y_{-1} + \Delta^2 y_0}{2}\right) + \frac{t(t^2 - \frac{1}{4})}{3!} \Delta^3 y_{-1} + \dots$$
 
 ---
 
@@ -494,6 +564,9 @@ Thuật toán Noi_Suy_Gauss_1(X, Y, M, eval_x):
 Đầu ra:
    - Mốc trung tâm x_0, bước h, biến chuẩn hóa t
    - Giá trị nội suy P(eval_x) theo công thức Gauss I
+   - Vector hệ số theo lũy thừa tăng dần của x:
+     Coeff_x[0..2*N] = [a_0, a_1, ..., a_(2N)]
+     sao cho P(x) = a_0 + a_1*x + ... + a_(2N)*x^(2N)
 
 ================================================================================
 BƯỚC 1: XÁC ĐỊNH MỐC TRUNG TÂM VÀ BIẾN CHUẨN HÓA t
@@ -520,23 +593,42 @@ BƯỚC 3: TÍNH GIÁ TRỊ THEO CÔNG THỨC GAUSS I (ZICZAC XUỐNG TRƯỚC)
       val = y_0
       prod = 1.0
       fact = 1.0
+      Poly_t[0..2*N] = 0.0
+      Poly_t[0] = y_0
+      basis[0..2*N] = 0.0
+      basis[0] = 1.0
 
 6. VÒNG LẶP k từ 1 đến 2*N:           // k là cấp sai phân
       fact = fact * k
       NẾU k là số lẻ (k = 2*m - 1 với m = 1, 2, ...):
             // Nhân thêm nhân tử Gauss I: (t + (m - 1))
-            prod = prod * (t + (m - 1))
+            shift = m - 1
             // Lấy sai phân: Delta^(2m-1) y_{-(m-1)} nằm tại hàng (mid_idx - (m - 1))
             d = D[mid_idx - (m - 1), k]
       NGƯỢC LẠI (k là số chẵn, k = 2*m với m = 1, 2, ...):
             // Nhân thêm nhân tử Gauss I: (t - m)
-            prod = prod * (t - m)
+            shift = -m
             // Lấy sai phân: Delta^(2m) y_{-m} nằm tại hàng (mid_idx - m)
             d = D[mid_idx - m, k]
             
+      prod = prod * (t + shift)
       val = val + (d / fact) * prod
+      next_basis[0..2*N] = 0.0
+      Với r từ 0 đến k - 1:
+            next_basis[r] = next_basis[r] + shift * basis[r]
+            next_basis[r + 1] = next_basis[r + 1] + basis[r]
+      basis = next_basis
+      Poly_t = Poly_t + (d / fact) * basis
 
-7. Trả về: x_0, t, val
+7. Đổi Poly_t sang hệ số theo x, với t = (x - x_0) / h:
+      Coeff_x[0..2*N] = 0.0
+      Với r từ 0 đến 2*N:
+            Với j từ 0 đến r:
+                  Coeff_x[j] = Coeff_x[j]
+                               + Poly_t[r] * Binomial(r, j)
+                               * (-x_0)**(r - j) / h**r
+
+8. Trả về: x_0, h, t, val, Coeff_x
 ```
 
 ---
@@ -552,6 +644,9 @@ Thuật toán Noi_Suy_Gauss_2(X, Y, M, eval_x):
 Đầu ra:
    - Mốc trung tâm x_0, bước h, biến chuẩn hóa t
    - Giá trị nội suy P(eval_x) theo công thức Gauss II
+   - Vector hệ số theo lũy thừa tăng dần của x:
+     Coeff_x[0..2*N] = [a_0, a_1, ..., a_(2N)]
+     sao cho P(x) = a_0 + a_1*x + ... + a_(2N)*x^(2N)
 
 ================================================================================
 BƯỚC 1: XÁC ĐỊNH MỐC TRUNG TÂM VÀ BIẾN CHUẨN HÓA t
@@ -578,23 +673,42 @@ BƯỚC 3: TÍNH GIÁ TRỊ THEO CÔNG THỨC GAUSS II (ZICZAC LÊN TRƯỚC)
       val = y_0
       prod = 1.0
       fact = 1.0
+      Poly_t[0..2*N] = 0.0
+      Poly_t[0] = y_0
+      basis[0..2*N] = 0.0
+      basis[0] = 1.0
 
 6. VÒNG LẶP k từ 1 đến 2*N:           // k là cấp sai phân
       fact = fact * k
       NẾU k là số lẻ (k = 2*m - 1 với m = 1, 2, ...):
             // Nhân thêm nhân tử Gauss II: (t - (m - 1))
-            prod = prod * (t - (m - 1))
+            shift = -(m - 1)
             // Lấy sai phân: Delta^(2m-1) y_{-m} nằm tại hàng (mid_idx - m)
             d = D[mid_idx - m, k]
       NGƯỢC LẠI (k là số chẵn, k = 2*m với m = 1, 2, ...):
             // Nhân thêm nhân tử Gauss II: (t + m)
-            prod = prod * (t + m)
+            shift = m
             // Lấy sai phân: Delta^(2m) y_{-m} nằm tại hàng (mid_idx - m)
             d = D[mid_idx - m, k]
             
+      prod = prod * (t + shift)
       val = val + (d / fact) * prod
+      next_basis[0..2*N] = 0.0
+      Với r từ 0 đến k - 1:
+            next_basis[r] = next_basis[r] + shift * basis[r]
+            next_basis[r + 1] = next_basis[r + 1] + basis[r]
+      basis = next_basis
+      Poly_t = Poly_t + (d / fact) * basis
 
-7. Trả về: x_0, t, val
+7. Đổi Poly_t sang hệ số theo x, với t = (x - x_0) / h:
+      Coeff_x[0..2*N] = 0.0
+      Với r từ 0 đến 2*N:
+            Với j từ 0 đến r:
+                  Coeff_x[j] = Coeff_x[j]
+                               + Poly_t[r] * Binomial(r, j)
+                               * (-x_0)**(r - j) / h**r
+
+8. Trả về: x_0, h, t, val, Coeff_x
 ```
 
 ---
@@ -602,117 +716,282 @@ BƯỚC 3: TÍNH GIÁ TRỊ THEO CÔNG THỨC GAUSS II (ZICZAC LÊN TRƯỚC)
 ### 6.5. Thuật toán Stirling trong 1 cell (Trung bình cộng Gauss I & II cho $|t| \le 0.25$)
 
 ```text
-Thuật toán Noi_Suy_Stirling(X, Y, M, eval_x):
+Thuật toán Noi_Suy_Stirling(X, Y, M, x_bar):
 Đầu vào:
-   - Mảng hoành độ X[0..M-1] (cách đều bước h)
-   - Mảng tung độ Y[0..M-1]
-   - Điểm đánh giá eval_x (thỏa mãn |t| <= 0.25 để đạt tốc độ hội tụ nhanh nhất)
+   - Số mốc M >= 2
+   - Mảng hoành độ X[0..M-1], cách đều với bước h != 0
+   - Mảng tung độ Y[0..M-1], trong đó Y[i] ứng với X[i]
+   - Điểm cần nội suy x_bar (ưu tiên chọn sao cho |t| <= 0.25)
 Đầu ra:
-   - Mốc trung tâm x_0, bước h, biến chuẩn hóa t
-   - Giá trị nội suy P(eval_x) theo công thức Stirling
+   - x_0: hoành độ mốc gần x_bar nhất
+   - h: khoảng cách giữa hai mốc liên tiếp
+   - t = (x_bar - x_0) / h
+   - val = P(t) = P(x_bar)
+   - Coeff_x[0..2*N]: hệ số của P theo lũy thừa tăng dần của x
 
 ================================================================================
 BƯỚC 1: XÁC ĐỊNH MỐC TRUNG TÂM VÀ BIẾN CHUẨN HÓA t
 ================================================================================
 1. Tính bước cách đều: h = X[1] - X[0]
-2. Tìm chỉ số mốc trung tâm mid_idx sao cho |X[mid_idx] - eval_x| nhỏ nhất.
-   x_0 = X[mid_idx], y_0 = Y[mid_idx]
-   t = (eval_x - x_0) / h
-3. Bán kính mốc đối xứng: N = min(mid_idx, M - 1 - mid_idx)
+2. Tìm chỉ số mốc gần x_bar nhất:
+      mid = 0
+      min_dist = |X[0] - x_bar|
+      VÒNG LẶP i từ 1 đến M - 1:
+            dist = |X[i] - x_bar|
+            NẾU dist < min_dist:
+                  min_dist = dist
+                  mid = i
+   x_0 = X[mid]
+   y_0 = Y[mid]
+   t = (x_bar - x_0) / h
+3. Tính số mốc đối xứng mỗi phía: N = min(mid, M - 1 - mid)
 
 ================================================================================
 BƯỚC 2: LẬP BẢNG SAI PHÂN HỮU HẠN D
 ================================================================================
-4. Khởi tạo ma trận D kích thước M x M:
+4. Khởi tạo ma trận D kích thước M x (2*N + 1):
       D[i, 0] = Y[i] với i = 0..M-1
       VÒNG LẶP j từ 1 đến 2*N:
-            VÒNG LẶP i từ 0 đến (M - 1 - j):
+            VÒNG LẶP i từ 0 đến M - 1 - j:
                   D[i, j] = D[i + 1, j - 1] - D[i, j - 1]
 
 ================================================================================
-BƯỚC 3: TÍNH TOÁN THEO CÔNG THỨC STIRLING (TÁCH SỐ HẠNG CHẴN VÀ LẺ)
+BƯỚC 3: DỰNG ĐA THỨC STIRLING THEO BIẾN t
 ================================================================================
-5. Khởi tạo:
-      val = y_0
-      t_sq = t * t
-      p = 1.0
+5. Khởi tạo vector hệ số theo lũy thừa tăng dần:
+      Coeff_t[0..2*N] = 0.0
+      Coeff_t[0] = y_0
+      B[0..2*N] = 0.0
+      B[0] = 1.0
+      // Trước lượt i, B(t) = product_{k=1}^{i-1}(t^2 - k^2)
 
 6. VÒNG LẶP i từ 1 đến N:
-      fact_odd = Factorial(2*i - 1)
-      fact_even = Factorial(2*i)
-      
-      // Số hạng lẻ: Lấy trung bình cộng Delta^(2i-1) y_{-i} và Delta^(2i-1) y_{-i+1}
-      d_odd = (D[mid_idx - i, 2*i - 1] + D[mid_idx - i + 1, 2*i - 1]) / 2.0
-      term_odd = (d_odd / fact_odd) * t * p
-      
-      // Số hạng chẵn: dùng cùng p trước khi cập nhật, lấy Delta^(2i) y_{-i}
-      d_even = D[mid_idx - i, 2*i]
-      term_even = (d_even / fact_even) * t_sq * p
-      
-      val = val + term_odd + term_even
-      p = p * (t_sq - i**2)
+      a = (D[mid - i, 2*i - 1] + D[mid - i + 1, 2*i - 1])
+          / (2 * Factorial(2*i - 1))
+      b = D[mid - i, 2*i] / Factorial(2*i)
 
-7. Trả về: x_0, t, val
+      // Cộng (a*t + b*t^2) * B(t) vào đa thức P(t).
+      Với r từ 0 đến 2*(i - 1):
+            Coeff_t[r + 1] = Coeff_t[r + 1] + a * B[r]
+            Coeff_t[r + 2] = Coeff_t[r + 2] + b * B[r]
+
+      // Cập nhật B(t) = B(t) * (t^2 - i^2).
+      B_next[0..2*N] = 0.0
+      Với r từ 0 đến 2*(i - 1):
+            B_next[r] = B_next[r] - i^2 * B[r]
+            B_next[r + 2] = B_next[r + 2] + B[r]
+      B = B_next
+
+================================================================================
+BƯỚC 4: ĐỔI BIẾN BẰNG HORNER ĐỂ TÍNH HỆ SỐ THEO x
+================================================================================
+7. Khởi tạo đa thức Q theo hệ số bậc cao nhất:
+      Q[0] = Coeff_t[2*N]
+      degree = 0
+
+8. VÒNG LẶP r từ 2*N - 1 giảm dần đến 0:
+      Q_next[0..degree + 1] = 0.0
+      Với j từ 0 đến degree:
+            Q_next[j] = Q_next[j] - (x_0 / h) * Q[j]
+            Q_next[j + 1] = Q_next[j + 1] + Q[j] / h
+      Q_next[0] = Q_next[0] + Coeff_t[r]
+      Q = Q_next
+      degree = degree + 1
+
+9. Gán Coeff_x = Q
+
+================================================================================
+BƯỚC 5: TÍNH GIÁ TRỊ NỘI SUY BẰNG HORNER
+================================================================================
+10. Khởi tạo val = Coeff_t[2*N]
+11. VÒNG LẶP r từ 2*N - 1 giảm dần đến 0:
+       val = val * t + Coeff_t[r]
+
+12. Trả về: x_0, h, t, val, Coeff_x
 ```
 
 ---
 
-### 6.6. Thuật toán Bessel trong 1 cell (Biến đối xứng $u = t - 0.5$ cho $0.25 \le t \le 0.75$)
+### 6.6. Thuật toán Bessel trong 1 cell (Biến chuẩn hóa đối xứng $t$ quanh trung điểm cặp mốc)
 
 ```text
-Thuật toán Noi_Suy_Bessel(X, Y, M, eval_x):
+Thuật toán Noi_Suy_Bessel(X, Y, M, x_bar):
 Đầu vào:
-   - Mảng hoành độ X[0..M-1] (cách đều bước h)
-   - Mảng tung độ Y[0..M-1]
-   - Điểm đánh giá eval_x (thỏa mãn 0.25 <= t <= 0.75)
+   - Số mốc M >= 2
+   - Mảng hoành độ X[0..M-1], cách đều với bước h != 0
+   - Mảng tung độ Y[0..M-1], trong đó Y[i] ứng với X[i]
+   - Điểm cần tính x_bar
 Đầu ra:
-   - Mốc trung tâm x_0, x_1, bước h, biến chuẩn hóa t, u = t - 0.5
-   - Giá trị nội suy P(eval_x) theo công thức Bessel
+   - x_0, x_1: hai mốc trung tâm được chọn
+   - h: khoảng cách giữa hai mốc liên tiếp
+   - t = (x_bar - (x_0 + x_1)/2) / h: biến chuẩn hóa đối xứng
+   - N: bán kính nội suy thực tế sau khi giới hạn theo số mốc khả dụng
+   - val = P(x_bar)
+   - Coeff_x[0..2*N+1]: hệ số của P theo lũy thừa tăng dần của x
 
 ================================================================================
-BƯỚC 1: XÁC ĐỊNH CẶP MỐC KẸP VÀ ẨN PHỤ ĐỐI XỨNG u
+BƯỚC 1: CHỌN CẶP MỐC TRUNG TÂM VÀ TÍNH BIẾN CHUẨN HÓA t
 ================================================================================
-1. Tính bước cách đều: h = X[1] - X[0]
-2. Tìm chỉ số mid_idx sao cho X[mid_idx] <= eval_x <= X[mid_idx + 1].
-   x_0 = X[mid_idx]
-   t = (eval_x - x_0) / h         // 0.0 <= t <= 1.0
-   u = t - 0.5                   // -0.5 <= u <= 0.5 (Tối ưu khi |u| <= 0.25)
-3. Bán kính mốc đối xứng: N = min(mid_idx, M - 2 - mid_idx)
+1. Kiểm tra đầu vào:
+      NẾU M < 2: báo lỗi và dừng
+      h = X[1] - X[0]
+      NẾU h = 0: báo lỗi và dừng
+      tol = 10^(-10) * max(1, |h|)
+      VÒNG LẶP i từ 1 đến M - 2:
+            NẾU |(X[i + 1] - X[i]) - h| > tol:
+                  báo lỗi "Các mốc X không cách đều"
+                  và dừng
+2. Tìm cặp mốc có trung điểm gần x_bar nhất:
+      mid_idx = 0
+      pair_mid = (X[0] + X[1]) / 2
+      min_dist = |pair_mid - x_bar|
+      VÒNG LẶP i từ 1 đến M - 2:
+            pair_mid = (X[i] + X[i + 1]) / 2
+            dist = |pair_mid - x_bar|
+            NẾU dist < min_dist:
+                  min_dist = dist
+                  mid_idx = i
+      x_0 = X[mid_idx]
+      x_1 = X[mid_idx + 1]
+      // Khi hòa khoảng cách, giữ cặp có chỉ số nhỏ hơn.
+      NẾU x_bar < min(X[0], X[M - 1]) HOẶC x_bar > max(X[0], X[M - 1]):
+            cảnh báo "Đang ngoại suy; độ chính xác có thể giảm"
+      x_mid = (x_0 + x_1) / 2
+   t = (x_bar - x_mid) / h
+   // Nếu x_bar nằm giữa x_0 và x_1 thì -0.5 <= t <= 0.5.
+   // Công thức Bessel thường phù hợp nhất khi |t| <= 0.25.
+
+3. Tính bán kính mốc đối xứng tối đa:
+      N = min(mid_idx, M - 2 - mid_idx)
 
 ================================================================================
 BƯỚC 2: LẬP BẢNG SAI PHÂN HỮU HẠN D
 ================================================================================
-4. Khởi tạo ma trận D kích thước M x M:
-      D[i, 0] = Y[i] với i = 0..M-1
+4. Khởi tạo ma trận D kích thước M x (2*N + 2):
+      Với i từ 0 đến M - 1:
+            D[i, 0] = Y[i]
       VÒNG LẶP j từ 1 đến 2*N + 1:
-            VÒNG LẶP i từ 0 đến (M - 1 - j):
+            VÒNG LẶP i từ 0 đến M - 1 - j:
                   D[i, j] = D[i + 1, j - 1] - D[i, j - 1]
 
 ================================================================================
-BƯỚC 3: TÍNH TOÁN THEO CÔNG THỨC BESSEL
+BƯỚC 3: DỰNG ĐA THỨC BESSEL THEO BIẾN t
 ================================================================================
-5. Khởi tạo với 2 số hạng đầu tiên:
-      val = (D[mid_idx, 0] + D[mid_idx + 1, 0]) / 2.0 + u * D[mid_idx, 1]
-      prod_base = (u**2) - 0.25
+5. Khởi tạo vector hệ số theo lũy thừa tăng dần của t:
+      Coeff_t[0..2*N+1] = 0.0
+      Coeff_t[0] = (D[mid_idx, 0] + D[mid_idx + 1, 0]) / 2
+      Coeff_t[1] = D[mid_idx, 1]
+      B[0..2*N+1] = 0.0
+      B[0] = -0.25
+      NẾU N >= 1:
+            B[2] = 1.0
+            // B(t) = t^2 - 1/4 cho số hạng ứng với i = 1.
 
 6. VÒNG LẶP i từ 1 đến N:
-      fact_even = Factorial(2*i)
-      fact_odd  = Factorial(2*i + 1)
-      
-      // Số hạng chẵn: Trung bình cộng hai sai phân cấp chẵn Delta^(2i) y_{-i} và Delta^(2i) y_{-i+1}
-      d_even = (D[mid_idx - i, 2*i] + D[mid_idx - i + 1, 2*i]) / 2.0
-      term_even = (d_even / fact_even) * prod_base
-      
-      // Số hạng lẻ: Sai phân cấp lẻ Delta^(2i+1) y_{-i}
-      d_odd = D[mid_idx - i, 2*i + 1]
-      term_odd = (d_odd / fact_odd) * u * prod_base
-      
-      val = val + term_even + term_odd
-      
-      // Cập nhật tích lũy đa thức tích cho lượt sau:
-      prod_base = prod_base * ((u**2) - (i + 0.5)**2)
+      a = (D[mid_idx - i, 2*i] + D[mid_idx - i + 1, 2*i])
+          / (2 * Factorial(2*i))
+      b = D[mid_idx - i, 2*i + 1] / Factorial(2*i + 1)
 
-7. Trả về: x_0, t, u, val
+      // Cộng (a + b*t) * B(t) vào đa thức P(t).
+      Với r từ 0 đến 2*i:
+            Coeff_t[r] = Coeff_t[r] + a * B[r]
+            Coeff_t[r + 1] = Coeff_t[r + 1] + b * B[r]
+
+      // Chuẩn bị B(t) = B(t) * (t^2 - (i + 1/2)^2) cho lượt sau.
+      NẾU i < N:
+            B_next[0..2*N+1] = 0.0
+            Với r từ 0 đến 2*i:
+                  B_next[r] = B_next[r] - (i + 0.5)^2 * B[r]
+                  B_next[r + 2] = B_next[r + 2] + B[r]
+            B = B_next
+
+================================================================================
+BƯỚC 4: ĐỔI BIẾN BẰNG HORNER ĐỂ TÍNH HỆ SỐ THEO x
+================================================================================
+7. Với t = (x - x_mid) / h:
+      Q[0] = Coeff_t[2*N + 1]
+      degree = 0
+
+8. VÒNG LẶP r từ 2*N giảm dần đến 0:
+      Q_next[0..degree + 1] = 0.0
+      Với j từ 0 đến degree:
+            Q_next[j] = Q_next[j] - (x_mid / h) * Q[j]
+            Q_next[j + 1] = Q_next[j + 1] + Q[j] / h
+      Q_next[0] = Q_next[0] + Coeff_t[r]
+      Q = Q_next
+      degree = degree + 1
+
+9. Gán Coeff_x = Q
+   // Coeff_x là dạng hệ số để xuất đa thức; phép đổi biến có thể
+   // khuếch đại sai số làm tròn nếu |x_mid / h| lớn.
+
+================================================================================
+BƯỚC 5: TÍNH GIÁ TRỊ NỘI SUY BẰNG HORNER
+================================================================================
+10. Khởi tạo val = Coeff_t[2*N + 1]
+11. VÒNG LẶP r từ 2*N giảm dần đến 0:
+       val = val * t + Coeff_t[r]
+   // Tính val trực tiếp theo biến chuẩn hóa t, không dùng Coeff_x.
+
+12. Trả về: x_0, x_1, h, N, t, val, Coeff_x
+```
+
+---
+
+### 6.7. Thuật toán sơ lược Stirling và Bessel
+
+Hai thuật toán dưới đây tóm tắt các bước nội suy chính. Cách khai triển đa thức sang `Coeff_x` được thực hiện như ở thuật toán chi tiết tương ứng phía trên.
+
+#### A. Stirling
+
+```text
+Thuật toán So_Luoc_Stirling(X, Y, M, x_bar):
+Đầu vào: Các mốc X cách đều, bảng giá trị Y và điểm cần nội suy x_bar
+Đầu ra: val = P(x_bar), Coeff_x
+
+1. Tính h = X[1] - X[0].
+2. Chọn mid sao cho X[mid] gần x_bar nhất; đặt:
+      x_0 = X[mid]
+      t = (x_bar - x_0) / h
+      N = min(mid, M - 1 - mid)
+3. Lập bảng sai phân D đến cấp 2*N.
+4. Khởi tạo P(t) = Y[mid], B(t) = 1.
+5. Với i từ 1 đến N:
+      a = (D[mid-i, 2*i-1] + D[mid-i+1, 2*i-1])
+          / (2 * (2*i-1)!)
+      b = D[mid-i, 2*i] / (2*i)!
+      P(t) = P(t) + (a*t + b*t^2) * B(t)
+      B(t) = B(t) * (t^2 - i^2)
+6. Tính val = P(t) bằng Horner.
+7. Đổi P((x - x_0)/h) sang hệ số theo lũy thừa của x để thu Coeff_x.
+8. Trả về val, Coeff_x.
+```
+
+#### B. Bessel
+
+```text
+Thuật toán So_Luoc_Bessel(X, Y, M, x_bar):
+Đầu vào: Các mốc X cách đều, bảng giá trị Y và điểm cần nội suy x_bar
+Đầu ra: val = P(x_bar), Coeff_x
+
+1. Tính h = X[1] - X[0].
+2. Chọn cặp X[mid], X[mid+1] có trung điểm gần x_bar nhất; đặt:
+      x_mid = (X[mid] + X[mid+1]) / 2
+      t = (x_bar - x_mid) / h
+      N = min(mid, M - 2 - mid)
+3. Lập bảng sai phân D đến cấp 2*N + 1.
+4. Khởi tạo:
+      P(t) = (D[mid, 0] + D[mid+1, 0]) / 2 + t*D[mid, 1]
+      B(t) = t^2 - 1/4
+5. Với i từ 1 đến N:
+      a = (D[mid-i, 2*i] + D[mid-i+1, 2*i])
+          / (2 * (2*i)!)
+      b = D[mid-i, 2*i+1] / (2*i+1)!
+      P(t) = P(t) + (a + b*t) * B(t)
+      B(t) = B(t) * (t^2 - (i + 1/2)^2)
+6. Tính val = P(t) bằng Horner.
+7. Đổi P((x - x_mid)/h) sang hệ số theo lũy thừa của x để thu Coeff_x.
+8. Trả về val, Coeff_x.
 ```
 
 ---
@@ -875,76 +1154,255 @@ BƯỚC 5: ĐÁNH GIÁ SAI SỐ PHẦN DƯ (RESIDUAL)
 #### 7.3.1. Thuật toán chi tiết từng bước lặp
 
 ```text
-Thuật toán Lap_Noi_Suy_Nguoc(X, Y, n, eval_y, tol, max_iter):
-Đầu vào: Mảng X, Y (cách đều bước h), giá trị mục tiêu eval_y, sai số tol, số lần lặp tối đa max_iter.
-Đầu ra: Nghiệm x*, bảng lịch sử các bước lặp.
+Thuật toán Lap_Noi_Suy_Nguoc(Data, eval_y, tol, max_iter):
+Đầu vào:
+   - Data = [(x_i, y_i)] với hoành độ có thể chưa sắp xếp
+   - Giá trị mục tiêu eval_y
+   - Sai số tol > 0 áp dụng cho diff_t; số lần lặp tối đa max_iter > 0
+Đầu ra:
+   - Danh sách nghiệm phân biệt tìm được x_star[0..n_roots-1] và số nghiệm n_roots
+   - Lịch sử, residual và trạng thái tương ứng từng nghiệm
+   // n_roots đếm nghiệm tại nút và nghiệm hội tụ từ khoảng đổi dấu;
+   // nghiệm tiếp xúc không nằm tại nút có thể không được phát hiện.
 
-BƯỚC 1: TÌM KHOẢNG PHÂN LY NGHIỆM
-      Khởi tạo found = False, k_sep = -1
-      VÒNG LẶP i từ 0 đến n - 1:
-            NẾU (Y[i] - eval_y) * (Y[i+1] - eval_y) <= 0 THÌ:
-                  k_sep = i
-                  found = True
-                  THOÁT VÒNG LẶP
-      Nếu không tìm thấy, chọn khoảng gần nhất.
+BƯỚC 0: KIỂM TRA VÀ CHUẨN HÓA DỮ LIỆU
+      NẾU số điểm < 2, tol <= 0 hoặc max_iter < 1:
+            báo lỗi đầu vào và dừng.
+      Sắp xếp Data theo x tăng dần.
+      Gộp các điểm có cùng x:
+            NẾU các y tương ứng bằng nhau thì chỉ giữ một điểm.
+            NẾU các y khác nhau thì báo lỗi
+                  "Một hoành độ có nhiều tung độ mâu thuẫn" và dừng.
+      Gán X[0..n], Y[0..n] từ dữ liệu đã gộp.
+      NẾU n < 1: báo lỗi không đủ hoành độ phân biệt và dừng.
+      h = X[1] - X[0]
+      NẾU h <= 0:
+            báo lỗi "Các hoành độ phải tăng nghiêm ngặt" và dừng.
+      tol_h = 1e-10 * max(1, |X[0]|, |X[n]|, |h|)
+      Với i từ 1 đến n - 1:
+            NẾU |(X[i + 1] - X[i]) - h| > tol_h:
+                  báo lỗi "Các mốc X không cách đều; sai phân hữu hạn không áp dụng"
+                  và dừng.
+
+BƯỚC 1: TÌM TẤT CẢ KHOẢNG CÁCH LY NGHIỆM
+      RootNodes = danh sách rỗng
+      Brackets = danh sách rỗng
+      MonotoneRuns = danh sách rỗng
+      // Tách bảng thành các đoạn đơn điệu nghiêm ngặt tối đại.
+      // Gom liên tiếp các hiệu khác 0 có cùng dấu, từ các hiệu
+      // Y[p+1]-Y[p] đến Y[q+1]-Y[q], thành đoạn mốc [p, q+1].
+      // Hiệu bằng 0 kết thúc đoạn hiện tại và không thuộc đoạn nghiêm ngặt.
+      Với i từ 0 đến n - 1:
+            s[i] = dấu(Y[i + 1] - Y[i])
+      i = 0
+      TRONG KHI i < n:
+            NẾU s[i] = 0:
+                  i = i + 1
+            NGƯỢC LẠI:
+                  L = i
+                  sign_run = s[i]
+                  TRONG KHI i + 1 < n VÀ s[i + 1] = sign_run:
+                        i = i + 1
+                  R = i + 1
+                  thêm [L, R] vào MonotoneRuns
+                  i = i + 1
+      Với i từ 0 đến n:
+            NẾU Y[i] = eval_y:
+                  thêm X[i] vào RootNodes
+      Với mỗi đoạn đơn điệu [L, R] trong MonotoneRuns:
+            VÒNG LẶP i từ L đến R - 1:
+                  NẾU (Y[i] - eval_y) * (Y[i + 1] - eval_y) < 0:
+                        thêm (i, L, R) vào Brackets
+      // Dấu < 0 không đưa nghiệm tại nút vào hai khoảng lân cận để tránh đếm trùng.
+      NẾU Brackets rỗng:
+            n_roots = số phần tử RootNodes
+            Trả về RootNodes, n_roots và trạng thái tương ứng.
+            Nếu n_roots = 0, trạng thái là "Không tìm thấy khoảng cách ly nghiệm".
+            Dừng thuật toán.
+
+      VÒNG LẶP với mỗi (k_sep, L, R) trong Brackets:
+            Thực hiện các Bước 2–5 riêng cho khoảng [X[k_sep], X[k_sep + 1]].
+            Dùng toàn bộ các mốc X[L..R], Y[L..R] của đoạn đơn điệu chứa khoảng đó.
+            Nếu phép lặp thất bại, ghi trạng thái cho khoảng đó rồi tiếp tục.
 
 BƯỚC 2: TRÍCH XUẤT CỤM MỐC VÀ LẬP BẢNG SAI PHÂN
-      Trích xuất cụm 4 hoặc 5 mốc quanh k_sep: (x_0, y_0), (x_1, y_1), ...
-      Tính bảng sai phân hữu hạn Δ.
-      Lấy c1 = Δy_0. Nếu |c1| < 1e-14 thì báo lỗi (đạo hàm xấp xỉ bằng 0).
-      
+      dy_sep = Y[k_sep + 1] - Y[k_sep]
+      NẾU dy_sep = 0:
+            báo lỗi "Hai tung độ tại khoảng phân ly bằng nhau" và dừng.
+      // Chọn mốc xuất phát gần giá trị mục tiêu hơn trong toàn đoạn [L, R].
+      m = R - L + 1
+      t_forward_0 = (eval_y - Y[L]) / (Y[L + 1] - Y[L])
+      t_backward_0 = (eval_y - Y[R]) / (Y[R] - Y[R - 1])
+
+      NẾU |t_forward_0| <= |t_backward_0|:
+            mode = "Newton tiến"
+            Trích xuất toàn bộ m mốc Xf[i] = X[L + i], Yf[i] = Y[L + i]
+            Y_local = Yf
+            x_anchor = X[L]
+            y_anchor = Y[L]
+            Df[i, 0] = Yf[i] với i = 0..m-1
+            Df[i, r] = Df[i + 1, r - 1] - Df[i, r - 1]
+                  với r = 1..m-1 và i = 0..m-r-1
+            c1 = Df[0, 1]
+      NGƯỢC LẠI:
+            mode = "Newton lùi"
+            Trích xuất toàn bộ m mốc Xb[i] = X[L + i], Yb[i] = Y[L + i]
+            Y_local = Yb
+            x_anchor = X[R]
+            y_anchor = Y[R]
+            Lập bảng sai phân lùi Nb trên cụm đến cấp m - 1:
+                  Nb[i, 0] = Yb[i]
+                  Nb[i, r] = Nb[i, r - 1] - Nb[i - 1, r - 1]
+                  với r = 1..m-1 và i = r..m-1
+            c1 = Nb[m - 1, 1]
+
+      // Đã dùng toàn bộ mốc của đoạn đơn điệu tối đại [L, R].
+      Nếu |c1| <= 1e-12 * max_i |Y_local[i]|:
+            ghi trạng thái "Sai phân bậc nhất quá nhỏ",
+            bỏ qua khoảng hiện tại và chuyển sang khoảng kế tiếp.
+
 BƯỚC 3: THIẾT LẬP CÔNG THỨC HÀM LẶP phi(t)
-      Điểm xuất phát: t^(0) = (eval_y - y_0) / Δy_0
-      Hàm lặp phi(t):
-            phi(t) = t^(0) - [ (Δ²y_0 / (2! * Δy_0)) * t(t - 1)
-                             + (Δ³y_0 / (3! * Δy_0)) * t(t - 1)(t - 2) + ... ]
+      NẾU mode = "Newton tiến":
+            t^(0) = (eval_y - y_anchor) / c1
+            phi(t) = t^(0)
+                     - SUM từ r = 2 đến m - 1:
+                       [Df[0, r] / (r! * c1)] * product_{j=0}^{r-1}(t - j)
+      NGƯỢC LẠI (Newton lùi):
+            t^(0) = (eval_y - y_anchor) / c1
+            psi(t) = t^(0)
+                     - SUM từ r = 2 đến m - 1:
+                       [Nb[m - 1, r] / (r! * c1)] * product_{j=0}^{r-1}(t + j)
+      Điều kiện co cục bộ:
+            |phi'(t)| < 1 với Newton tiến
+            |psi'(t)| < 1 với Newton lùi
+         tương đương
+            0 < P'(t) / c1 < 2
+      (P' là đạo hàm theo biến t tương ứng).
+      Điều kiện này cần được thỏa trong lân cận nghiệm để đảm bảo hội tụ.
 
 BƯỚC 4: VÒNG LẶP ĐIỂM BẤT ĐỘNG (FIXED-POINT ITERATION)
       Khởi tạo t_curr = t^(0)
       Khởi tạo bảng lịch sử History rỗng
-      Ghi nhận bước 0: (k=0, t^(0), x^(0) = x_0 + t^(0)*h, diff_t = NaN)
+      diff_x = NaN
+      Ghi nhận bước 0: (k=0, t^(0), x^(0) = x_anchor + t^(0)*h,
+                        diff_t = NaN, diff_x = NaN)
+      prev_diff_t = +infinity
+      increase_count = 0
+      converged = False
+      stopped_early = False
       
       VÒNG LẶP k từ 1 đến max_iter:
             t_prev = t_curr
             
             // Tính số hạng hiệu chỉnh (correction):
             corr = 0.0
-            VÒNG LẶP r từ 2 đến n:
+            VÒNG LẶP r từ 2 đến m - 1:
                   prod = 1.0
-                  VÒNG LẶP j từ 0 đến r - 1:
-                        prod = prod * (t_prev - j)
-                  corr = corr + (Δ^r y_0 / (Factorial(r) * c1)) * prod
-                  
+                  NẾU mode = "Newton tiến":
+                        VÒNG LẶP j từ 0 đến r - 1:
+                              prod = prod * (t_prev - j)
+                        delta_r = Df[0, r]
+                  NGƯỢC LẠI:
+                        VÒNG LẶP j từ 0 đến r - 1:
+                              prod = prod * (t_prev + j)
+                        delta_r = Nb[m - 1, r]
+                  corr = corr + (delta_r / (Factorial(r) * c1)) * prod
+
             t_curr = t^(0) - corr
             diff_t = |t_curr - t_prev|
-            x_curr = x_0 + t_curr * h
+            x_curr = x_anchor + t_curr * h
             diff_x = diff_t * h
             
             Ghi nhận bước k: (k, t_curr, x_curr, diff_t, diff_x)
             
             // KIỂM TRA ĐIỀU KIỆN DỪNG:
             NẾU diff_t < tol THÌ:
-                  Hội tụ thành công!
+                  converged = True
                   THOÁT VÒNG LẶP
+            NẾU diff_t > prev_diff_t:
+                  increase_count = increase_count + 1
+            NGƯỢC LẠI:
+                  increase_count = 0
+            NẾU increase_count >= 3:
+                  Cảnh báo "Sai số tăng liên tiếp; dừng vì có dấu hiệu không hội tụ"
+                  stopped_early = True
+                  THOÁT VÒNG LẶP
+            prev_diff_t = diff_t
 
 BƯỚC 5: TÍNH NGHIỆM CUỐI CÙNG VÀ THỬ LẠI
-      x_star = x_0 + t_curr * h
-      y_check = P(x_star)
+      x_star = x_anchor + t_curr * h
+      // Đánh giá đa thức Newton của đúng cụm/chiều đã dùng tại t_curr.
+      y_check = y_anchor + c1 * t_curr
+      VÒNG LẶP r từ 2 đến m - 1:
+            prod = 1.0
+            NẾU mode = "Newton tiến":
+                  VÒNG LẶP j từ 0 đến r - 1:
+                        prod = prod * (t_curr - j)
+                  delta_r = Df[0, r]
+            NGƯỢC LẠI:
+                  VÒNG LẶP j từ 0 đến r - 1:
+                        prod = prod * (t_curr + j)
+                  delta_r = Nb[m - 1, r]
+            y_check = y_check + (delta_r / Factorial(r)) * prod
       residual = |y_check - eval_y|
-      Trả về x_star, History, residual
+      k_local = k_sep - L
+      NẾU (
+            (mode = "Newton tiến" và t_curr không thuộc [k_local, k_local + 1]) hoặc
+            (mode = "Newton lùi" và t_curr không thuộc
+                  [k_sep - R, k_sep + 1 - R])
+      ):
+            cảnh báo "Nghiệm lặp nằm ngoài khoảng phân ly đã chọn"
+      NẾU converged = False VÀ stopped_early = False:
+            trạng thái = "Không hội tụ trong max_iter"
+      NGƯỢC LẠI NẾU stopped_early = True:
+            trạng thái = "Dừng sớm do sai số tăng"
+      NGƯỢC LẠI:
+            trạng thái = "Hội tụ"
+      Nếu trạng thái = "Hội tụ":
+            thêm x_star vào RootNodes nếu chưa trùng nghiệm đã có
+      Lưu History, residual và trạng thái cho khoảng k_sep.
+
+      n_roots = số nghiệm phân biệt trong RootNodes
+      Trả về RootNodes, n_roots, các lịch sử, residual và trạng thái.
 ```
 
-#### 7.3.2. Đánh giá kỹ thuật & Điều kiện hội tụ của hàm lặp $\varphi(t)$
+#### 7.3.2. Thuật toán sơ lược
+
+```text
+Thuật toán So_Luoc_Lap_Noi_Suy_Nguoc(Data, eval_y, tol, max_iter):
+Đầu vào: Các cặp dữ liệu (x_i, y_i), giá trị eval_y, tol, max_iter
+Đầu ra: Nghiệm phân biệt tìm được x_star và số nghiệm n_roots
+
+1. Sắp xếp dữ liệu theo x; gộp các điểm trùng x nếu y giống nhau.
+   Nếu cùng x nhưng y mâu thuẫn, báo lỗi.
+2. Kiểm tra các x sau chuẩn hóa cách đều; nếu không, báo lỗi.
+3. Chia bảng thành các đoạn đơn điệu nghiêm ngặt tối đại.
+   Thêm mọi x_i có y_i = eval_y vào danh sách nghiệm.
+   Tìm TẤT CẢ khoảng [x_k, x_(k+1)] đổi dấu trong các đoạn đó.
+   (Nghiệm tiếp xúc không nằm tại nút có thể không được phát hiện.)
+4. Với mỗi khoảng tìm được:
+      Dùng toàn bộ mốc của đoạn đơn điệu chứa khoảng đó
+      (nếu vùng ứng viên không đơn điệu, thu hẹp về đoạn đơn điệu).
+      Chọn Newton tiến hoặc lùi; lập bảng sai phân đến cấp m-1,
+      với m là số mốc trong đoạn.
+      Lặp công thức điểm bất động tương ứng đến khi
+      |t^(j+1) - t^(j)| < tol hoặc đạt max_iter.
+      Nếu hội tụ, đổi t* về x* theo mốc xuất phát và thêm vào danh sách.
+      Nếu không hội tụ, ghi trạng thái thất bại cho khoảng đó.
+5. Đặt n_roots = số nghiệm phân biệt tìm được; trả về n_roots và danh sách nghiệm.
+```
+
+#### 7.3.3. Đánh giá kỹ thuật & Điều kiện hội tụ của hàm lặp $\varphi(t)$
 
 | Tiêu chí | Đánh giá kỹ thuật |
 | :--- | :--- |
 | **Bản chất thuật toán** | Lặp điểm bất động $t^{(k+1)} = \varphi(t^{(k)})$ xuất phát từ nghiệm tuyến tính $t^{(0)} = \frac{\bar{y} - y_0}{\Delta y_0}$ |
-| **Độ phức tạp mỗi bước** | $O(m)$ phép tính hiệu chỉnh correction ở mỗi vòng lặp với đa thức bậc $m$ |
-| **Tiêu chuẩn dừng** | Dừng khi $|t^{(k+1)} - t^{(k)}| < \varepsilon$ hoặc số bước lặp vượt quá $max\_iter$ |
+| **Độ phức tạp mỗi bước** | $O(m^2)$ phép tính hiệu chỉnh nếu tính lại từng tích rơi; $m$ là số mốc trong đoạn đơn điệu |
+| **Tiêu chuẩn dừng** | Hội tụ khi $|t^{(k+1)} - t^{(k)}| < tol$; báo không hội tụ nếu hết $max\_iter$ hoặc dừng sớm vì sai số tăng liên tiếp |
 
 > [!NOTE]
 > **Điều kiện hội tụ (Định lý ánh xạ co Banach):**  
-> Quá trình lặp hội tụ nếu tồn tại số $q < 1$ sao cho $|\varphi'(t)| \le q < 1$ trong lân cận nghiệm. Khi bước $h$ đủ nhỏ và hàm số biến thiên êm dịu, số hạng bậc 2 trở đi rất nhỏ so với số hạng bậc nhất, đảm bảo tính chất co và nghiệm hội tụ rất nhanh.
+> Cần kiểm tra $Y$ đơn điệu nghiêm ngặt trên cụm mốc đã chọn. Lặp điểm bất động chỉ được đảm bảo hội tụ khi tồn tại $q < 1$ sao cho $|\varphi'(t)| \le q$ trong lân cận nghiệm; tương đương $0 < P'(t)/\Delta y_0 < 2$. Tính đơn điệu là điều kiện cần cho bài toán nghịch đảo trên cụm nhưng tự nó không đảm bảo tính co.
 
 ---
 
@@ -953,11 +1411,11 @@ BƯỚC 5: TÍNH NGHIỆM CUỐI CÙNG VÀ THỬ LẠI
 | Tiêu chí | Nội suy Hàm Ngược ($x = P(y)$) | Lặp Nội suy Ngược ($t = \varphi(t)$) |
 | :--- | :--- | :--- |
 | **Bản chất thuật toán** | Giải trực tiếp (Direct / Closed-form) | Thuật toán lặp điểm bất động (Iterative / Fixed-point) |
-| **Điều kiện hàm số** | Bắt buộc đơn điệu nghiêm ngặt trên khoảng chọn | Không bắt buộc đơn điệu toàn cục, chỉ cần $\Delta y_k \ne 0$ |
+| **Điều kiện hàm số** | Bắt buộc đơn điệu nghiêm ngặt trên khoảng chọn | Chọn toàn bộ mốc trong đoạn đơn điệu; hội tụ còn cần điều kiện co cục bộ $|\varphi'(t)|<1$ |
 | **Dạng mốc sau đổi biến** | Mốc $y_i$ **không cách đều** | Vẫn giữ nguyên biến chuẩn hóa $t$ cách đều $h$ |
 | **Công thức nội suy** | Newton tỷ sai phân hoặc Lagrange theo $y$ | Newton sai phân hữu hạn theo $t$ |
 | **Số bước tính toán** | Tính 1 lần bảng tỷ sai phân + nhân lồng Horner | Phải lặp nhiều bước $k = 0, 1, 2 \dots$ đến khi hội tụ |
-| **Sai số / Độ ổn định** | Dễ bị ảnh hưởng nếu các mốc $y_i$ quá sát nhau | Rất ổn định nếu thỏa điều kiện co $|\varphi'(t)| < 1$ |
+| **Sai số / Độ ổn định** | Dễ bị ảnh hưởng nếu các mốc $y_i$ quá sát nhau | Hội tụ khi thỏa điều kiện co $|\varphi'(t)| < 1$; đa thức bậc cao có thể nhạy với sai số |
 | **Ứng dụng phòng thi** | Nhanh, trực quan khi đề cho sẵn các mốc đơn điệu | Chuẩn mẫu giáo trình khi đề yêu cầu bảng các bước lặp |
 
 ---
@@ -1185,7 +1643,7 @@ BƯỚC 5: ĐÁNH GIÁ GIÁ TRỊ VÀ ĐẠO HÀM TẠI eval_x
 ## 9. Phương pháp Bình phương tối thiểu (Least Squares)
 
 ### 9.1. Mô hình Tuyến tính theo tham số: $g(x) = \sum_{j=1}^m c_j \varphi_j(x)$
-Cho tập thực nghiệm $(x_i, y_i)_{i=1}^N$ với $N > m$. Tìm $c = [c_1, \dots, c_m]^T$ cực tiểu hóa $S = \sum_{i=1}^N (y_i - g(x_i))^2$.
+Cho tập thực nghiệm $(x_i, y_i)_{i=1}^N$ với $N \ge m$. Tìm $c = [c_1, \dots, c_m]^T$ cực tiểu hóa $S = \sum_{i=1}^N (y_i - g(x_i))^2$.
 
 #### Thuật toán chi tiết trong 1 cell (Thiết lập ma trận Gram, giải hệ chuẩn Gauss và đánh giá sai số):
 
@@ -1201,15 +1659,19 @@ Thuật toán Binh_Phuong_Toi_Thieu_Tuyen_Tinh(X, Y, N, phi_funcs, m):
 ================================================================================
 BƯỚC 1: XÂY DỰNG MA TRẬN THIẾT KẾ PHI KÍCH THƯỚC (N x m)
 ================================================================================
-1. Khởi tạo ma trận Phi kích thước N x m:
+1. Kiểm tra N >= m >= 1; nếu không, báo lỗi và dừng.
+2. Khởi tạo ma trận Phi kích thước N x m:
       VÒNG LẶP i từ 1 đến N:
             VÒNG LẶP j từ 1 đến m:
                   Phi[i, j] = phi_funcs[j](X[i])
+   Nếu rank(Phi) < m (kiểm tra theo sai số số học phù hợp):
+         báo lỗi "Các hàm cơ sở không độc lập trên dữ liệu; không xác định duy nhất"
+         và dừng.
 
 ================================================================================
 BƯỚC 2: THIẾT LẬP HỆ PHƯƠNG TRÌNH CHUẨN GAUSS (M * c = B)
 ================================================================================
-2. Khởi tạo ma trận Gram đối xứng M (kích thước m x m) và vector vế phải B (kích thước m):
+3. Khởi tạo ma trận Gram đối xứng M (kích thước m x m) và vector vế phải B (kích thước m):
       // M = Phi^T * Phi, B = Phi^T * Y
       VÒNG LẶP j từ 1 đến m:
             VÒNG LẶP k từ j đến m:     // Tận dụng tính đối xứng M[j, k] = M[k, j]
@@ -1227,13 +1689,13 @@ BƯỚC 2: THIẾT LẬP HỆ PHƯƠNG TRÌNH CHUẨN GAUSS (M * c = B)
 ================================================================================
 BƯỚC 3: GIẢI HỆ PHƯƠNG TRÌNH ĐỐI XỨNG XÁC ĐỊNH DƯƠNG TÌM c
 ================================================================================
-3. Giải hệ M * c = B bằng phép phân tích Cholesky (M = L * L^T) hoặc khử Gauss:
+4. Giải hệ M * c = B bằng phép phân tích Cholesky (M = L * L^T) hoặc khử Gauss:
       c = Giai_He_Phuong_Trinh_Tuyen_Tinh(M, B)
 
 ================================================================================
 BƯỚC 4: TÍNH TOÁN DỰ BÁO VÀ CÁC CHỈ SỐ SAI SỐ THỐNG KÊ
 ================================================================================
-4. y_mean = (1.0 / N) * sum(Y[1..N])
+5. y_mean = (1.0 / N) * sum(Y[1..N])
    SSE = 0.0
    SST = 0.0
    sum_abs_e = 0.0
@@ -1251,12 +1713,15 @@ BƯỚC 4: TÍNH TOÁN DỰ BÁO VÀ CÁC CHỈ SỐ SAI SỐ THỐNG KÊ
          sum_abs_e = sum_abs_e + |e_i|
          NẾU |e_i| > max_e THÌ max_e = |e_i|
 
-5. Tính các chỉ số đánh giá:
+6. Tính các chỉ số đánh giá:
       RMSE = sqrt(SSE / N)
       MAE = sum_abs_e / N
-      R_squared = 1.0 - (SSE / SST)
+      NẾU SST = 0:
+            R_squared = "Không xác định (SST = 0)"
+      NGƯỢC LẠI:
+            R_squared = 1.0 - (SSE / SST)
 
-6. Trả về: c, SSE, RMSE, MAE, max_e, R_squared
+7. Trả về: c, SSE, RMSE, MAE, max_e, R_squared
 ```
 
 ---
@@ -1273,11 +1738,12 @@ Thuật toán Tuyen_Tinh_Hoa_Phi_Tuyen(X, Y, N, C0):
       NẾU mọi y_tilde[i] > 0 THÌ:
             sign_mode = +1
             Y_lin[i] = ln(y_tilde[i])
-      NẾU mọi y_tilde[i] < 0 THÌ:
+      NGƯỢC LẠI NẾU mọi y_tilde[i] < 0 THÌ:
             sign_mode = -1
             Y_lin[i] = ln(-y_tilde[i])
-      NẾU có cả giá trị âm và dương:
-            Báo lỗi: Mô hình không thể tuyến tính hóa bằng hàm logarit!
+      NGƯỢC LẠI:
+            Báo lỗi: "y_tilde chứa giá trị 0 hoặc không cùng dấu;
+                     không thể tuyến tính hóa bằng logarit."
 
 3. THIẾT LẬP MÔ HÌNH HỒI QUY TUYẾN TÍNH:
       Y_lin = A_0 + b * phi_1(x) + c * phi_2(x)
@@ -1298,14 +1764,244 @@ Thuật toán Tuyen_Tinh_Hoa_Phi_Tuyen(X, Y, N, C0):
       MAE = (1 / N) * sum(|e[i]|)
       RMSE = sqrt(SSE / N)
       Max_Error = max(|e[i]|)
-      R_squared = 1 - (SSE / sum((Y[i] - mean(Y))^2))
+      SST = sum((Y[i] - mean(Y))^2)
+      NẾU SST = 0:
+            R_squared = "Không xác định (SST = 0)"
+      NGƯỢC LẠI:
+            R_squared = 1 - (SSE / SST)
       
 7. Trả về các tham số a, b, c và bảng chỉ số sai số (SSE, RMSE, R^2).
 ```
 
 ---
 
-## 10. BẢNG TỔNG HỢP SO SÁNH CÁC THUẬT TOÁN
+## 10. Thuật toán sơ lược theo từng phương pháp
+
+Các cell dưới đây là bản tóm tắt độc lập cho những phương pháp chưa có cell sơ lược ở các mục trước. Stirling, Bessel và lặp nội suy ngược đã có cell riêng tại mục 6.7 và 7.3.2.
+
+#### A. Horner tính giá trị
+
+```text
+Thuật toán So_Luoc_Horner_Gia_Tri(a[0..N], c):
+1. p = a[0]
+2. Với i từ 1 đến N: p = p*c + a[i]
+3. Trả về p = P(c)
+```
+
+#### B. Horner tìm thương và số dư
+
+```text
+Thuật toán So_Luoc_Horner_Chia(a[0..N], c):
+1. Nếu N = 0: trả về thương rỗng, số dư a[0].
+2. q[0] = a[0]
+3. Với i từ 1 đến N-1: q[i] = a[i] + c*q[i-1]
+4. r = a[N] + c*q[N-1]
+5. Trả về q, r; P(x) = (x-c)Q(x) + r.
+```
+
+#### C. Horner tính đạo hàm cấp k
+
+```text
+Thuật toán So_Luoc_Horner_Dao_Ham(a[0..N], c, k):
+1. Kiểm tra 0 <= k <= N.
+2. D[0] = a[0]; D[1..k] = 0.
+3. Với i từ 1 đến N:
+      Với j từ min(i,k) giảm đến 1: D[j] = c*D[j] + j*D[j-1]
+      D[0] = c*D[0] + a[i]
+4. Trả về D[k] = P^(k)(c).
+```
+
+#### D. Horner khai triển Taylor
+
+```text
+Thuật toán So_Luoc_Horner_Taylor(a[0..N], c):
+1. q = copy(a).
+2. Với m từ 0 đến N:
+      Chia q cho (x-c) bằng Horner; lấy số dư làm Taylor_Coeff[m].
+      Nếu m < N, thay q bằng thương vừa tìm.
+3. Trả về Taylor_Coeff; mỗi phần tử thỏa
+   Taylor_Coeff[m] = P^(m)(c)/m!.
+```
+
+#### E. Sinh mốc Chebyshev
+
+```text
+Thuật toán So_Luoc_Chebyshev(a, b, n):
+1. Kiểm tra a < b, n >= 0.
+2. x_mid = (a+b)/2; radius = (b-a)/2.
+3. Với i từ 0 đến n:
+      x[i] = x_mid + radius*cos((2*i+1)*PI/(2*(n+1)))
+4. Sắp xếp x tăng dần; trả về n+1 mốc.
+```
+
+#### F. Nội suy Lagrange
+
+```text
+Thuật toán So_Luoc_Lagrange(X[0..n], Y[0..n], x_eval):
+1. Kiểm tra các X đôi một khác nhau.
+2. val = 0; P[0..n] = 0.
+3. Với i từ 0 đến n:
+      L_i(x) = product_{j != i}(x-X[j]) / product_{j != i}(X[i]-X[j])
+      val = val + Y[i]*L_i(x_eval)
+      Cộng Y[i]*L_i(x) vào vector hệ số chính tắc P.
+4. Trả về val, P.
+```
+
+#### G. Newton tỷ sai phân tiến
+
+```text
+Thuật toán So_Luoc_Newton_Ty_Sai_Phan_Tien(X, Y, n, x_eval):
+1. Lập bảng F tỷ sai phân:
+      F[i,0] = Y[i]
+      F[i,j] = (F[i+1,j-1]-F[i,j-1])/(X[i+j]-X[i])
+2. C[j] = F[0,j], j=0..n.
+3. Horner lồng: val = C[n];
+   với j giảm từ n-1 đến 0: val = val*(x_eval-X[j]) + C[j].
+4. Trả về val, C.
+```
+
+#### H. Newton tỷ sai phân lùi
+
+```text
+Thuật toán So_Luoc_Newton_Ty_Sai_Phan_Lui(X, Y, n, x_eval):
+1. Lập bảng F tỷ sai phân như Newton tiến.
+2. C[j] = F[n-j,j], j=0..n.
+3. Horner lồng: val = C[n];
+   với j giảm từ n-1 đến 0: val = val*(x_eval-X[n-j]) + C[j].
+4. Trả về val, C.
+```
+
+#### I. Newton sai phân hữu hạn tiến
+
+```text
+Thuật toán So_Luoc_Newton_Huu_Han_Tien(X, Y, n, x_eval):
+1. Kiểm tra X cách đều; h = X[1]-X[0] != 0.
+2. Lập bảng sai phân tiến D; t = (x_eval-X[0])/h.
+3. P(t) = D[0,0] + SUM(j=1..n) D[0,j]/j! * product(r=0..j-1)(t-r).
+4. Tính val bằng Horner lồng theo các nhân tử (t-r).
+5. Trả về val, t và các sai phân dùng trong đa thức.
+```
+
+#### J. Newton sai phân hữu hạn lùi
+
+```text
+Thuật toán So_Luoc_Newton_Huu_Han_Lui(X, Y, n, x_eval):
+1. Kiểm tra X cách đều; h = X[1]-X[0] != 0.
+2. Lập bảng sai phân lùi; t_b = (x_eval-X[n])/h.
+3. P(t_b) = Y[n] + SUM(j=1..n) nabla^j(Y[n])/j!
+             * product(r=0..j-1)(t_b+r).
+4. Tính val bằng Horner lồng theo các nhân tử (t_b+r).
+5. Trả về val, t_b và các sai phân dùng trong đa thức.
+```
+
+#### K. Gauss I
+
+```text
+Thuật toán So_Luoc_Gauss_I(X, Y, eval_x):
+1. Chọn mốc trung tâm x_0 gần eval_x; h = X[1]-X[0], t=(eval_x-x_0)/h.
+2. Lập bảng sai phân hữu hạn và chọn số mốc đối xứng khả dụng.
+3. Dựng đa thức theo ziczac Gauss I:
+      số hạng lẻ dùng các nhân tử t+(m-1);
+      số hạng chẵn dùng các nhân tử t-m;
+      hệ số lấy từ các sai phân tương ứng chia k!.
+4. Tính val tại t và đổi đa thức sang hệ số theo x.
+5. Trả về val, Coeff_x.
+```
+
+#### L. Gauss II
+
+```text
+Thuật toán So_Luoc_Gauss_II(X, Y, eval_x):
+1. Chọn mốc trung tâm x_0 gần eval_x; h = X[1]-X[0], t=(eval_x-x_0)/h.
+2. Lập bảng sai phân hữu hạn và chọn số mốc đối xứng khả dụng.
+3. Dựng đa thức theo ziczac Gauss II:
+      số hạng lẻ dùng các nhân tử t-(m-1);
+      số hạng chẵn dùng các nhân tử t+m;
+      hệ số lấy từ các sai phân tương ứng chia k!.
+4. Tính val tại t và đổi đa thức sang hệ số theo x.
+5. Trả về val, Coeff_x.
+```
+
+#### M. Nội suy hàm ngược
+
+```text
+Thuật toán So_Luoc_Noi_Suy_Ham_Nguoc(Points, y_bar, n):
+1. Chọn n+1 mốc lân cận y_bar trong một đoạn đơn điệu nghiêm ngặt.
+2. Đổi vai trò biến: Y_i = y_i, X_i = x_i.
+3. Lập bảng tỷ sai phân của X theo biến độc lập Y.
+4. Dùng các hệ số Newton và Horner tại y_bar để tính x_bar = P(y_bar).
+5. Trả về x_bar.
+```
+
+#### N. Spline tuyến tính
+
+```text
+Thuật toán So_Luoc_Linear_Spline(X, Y, eval_x):
+1. Kiểm tra X tăng nghiêm ngặt và eval_x thuộc [X[0], X[n]].
+2. Với mỗi đoạn i: h_i=X[i+1]-X[i],
+   A_i=Y[i], B_i=(Y[i+1]-Y[i])/h_i.
+3. Tìm đoạn k chứa eval_x; nếu eval_x=X[n], đặt k=n-1.
+4. val=A_k+B_k*(eval_x-X[k]).
+5. Trả về các hệ số [A_i,B_i] và val.
+```
+
+#### O. Spline bậc 2
+
+```text
+Thuật toán So_Luoc_Quadratic_Spline(X, Y, z0, eval_x):
+1. Khởi tạo z[0]=z0.
+2. Với i=0..n-1:
+      h_i=X[i+1]-X[i]; secant=(Y[i+1]-Y[i])/h_i
+      z[i+1]=2*secant-z[i]
+      A_i=Y[i]; B_i=z[i]
+      C_i=(Y[i+1]-Y[i]-z[i]*h_i)/h_i^2
+3. Tìm đoạn k chứa eval_x.
+4. val=A_k+B_k*dx+C_k*dx^2, dx=eval_x-X[k].
+5. Trả về hệ số đoạn và val.
+```
+
+#### P. Natural cubic spline
+
+```text
+Thuật toán So_Luoc_Natural_Cubic_Spline(X, Y, eval_x):
+1. Kiểm tra X tăng nghiêm ngặt; tính h_i=X[i+1]-X[i].
+2. Đặt M[0]=M[n]=0; lập hệ tam-diagonal cho M[1..n-1].
+3. Giải hệ bằng Thomas.
+4. Với mỗi đoạn i, tính:
+      A_i=Y[i]
+      B_i=(Y[i+1]-Y[i])/h_i - h_i*(2*M[i]+M[i+1])/6
+      C_i=M[i]/2; D_i=(M[i+1]-M[i])/(6*h_i)
+5. Tìm đoạn k; dùng đa thức cục bộ tại eval_x để tính S, S', S''.
+6. Trả về M, hệ số đoạn và các giá trị.
+```
+
+#### Q. Bình phương tối thiểu tuyến tính theo tham số
+
+```text
+Thuật toán So_Luoc_Least_Squares(X, Y, phi_funcs, m):
+1. Kiểm tra N >= m và ma trận thiết kế Phi có hạng m.
+2. Lập Phi[i,j]=phi_j(X[i]).
+3. Tìm c cực tiểu ||Phi*c-Y||_2 bằng QR hoặc SVD.
+4. Tính y_hat, SSE, RMSE, MAE, Max_Error và SST.
+5. Nếu SST=0, R_squared không xác định; ngược lại R_squared=1-SSE/SST.
+6. Trả về c và các chỉ số sai số.
+```
+
+#### R. Tuyến tính hóa mô hình phi tuyến
+
+```text
+Thuật toán So_Luoc_Tuyen_Tinh_Hoa(X, Y, C0):
+1. y_tilde[i]=Y[i]-C0; kiểm tra mọi giá trị khác 0 và cùng dấu.
+2. sign_mode=sign(y_tilde); Y_lin[i]=ln(abs(y_tilde[i])).
+3. Hồi quy Y_lin=A0+b*phi1(x)+c*phi2(x) bằng least squares.
+4. Khôi phục a=sign_mode*exp(A0); giữ b,c.
+5. Đánh giá mô hình gốc và tính SSE, RMSE, MAE, Max_Error, R_squared.
+6. Trả về a,b,c và các chỉ số.
+```
+
+---
+
+## 11. BẢNG TỔNG HỢP SO SÁNH CÁC THUẬT TOÁN
 
 | Thuật toán | Loại mốc dữ liệu | Mục đích chính | Độ phức tạp thời gian | Cấu trúc vòng lặp trọng tâm |
 | :--- | :--- | :--- | :---: | :--- |
